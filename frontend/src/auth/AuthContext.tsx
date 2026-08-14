@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { login as apiLogin, logout as apiLogout, register as apiRegister } from '../api/authApi'
-import type { LoginPayload, RegisterPayload } from '../types/auth'
+import type { AuthResponse, LoginPayload, RegisterPayload } from '../types/auth'
 import { clearSession, loadSession, saveSession, UNAUTHORIZED_EVENT } from './session'
 import type { Session } from './session'
 
@@ -10,6 +10,7 @@ interface AuthContextValue {
   login: (payload: LoginPayload) => Promise<void>
   register: (payload: RegisterPayload) => Promise<void>
   logout: () => void
+  applyAuth: (auth: AuthResponse) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -43,8 +44,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(saveSession(await apiRegister(payload)))
   }, [])
 
+  // Adopt a fresh token mid-session (e.g. after a username change)
+  const applyAuth = useCallback((auth: AuthResponse) => {
+    setSession(saveSession(auth))
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ session, login, register, logout }}>
+    <AuthContext.Provider value={{ session, login, register, logout, applyAuth }}>
       {children}
     </AuthContext.Provider>
   )

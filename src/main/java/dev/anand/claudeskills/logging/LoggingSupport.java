@@ -3,6 +3,7 @@ package dev.anand.claudeskills.logging;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
 import java.util.Arrays;
@@ -39,6 +40,10 @@ final class LoggingSupport {
         }
         if (arg instanceof Principal principal) {
             return "principal=" + principal.getName();
+        }
+        if (arg instanceof MultipartFile file) {
+            return "file=" + file.getOriginalFilename()
+                    + " (" + file.getContentType() + ", " + file.getSize() + " bytes)";
         }
         return arg.toString();
     }

@@ -28,7 +28,13 @@ public class AuditAspect {
     public void authOperations() {
     }
 
-    @Around("taskMutations() || authOperations()")
+    @Pointcut("execution(* dev.anand.claudeskills.service.ProfileServiceImpl.updateProfile(..))"
+            + " || execution(* dev.anand.claudeskills.service.ProfileServiceImpl.changePassword(..))"
+            + " || execution(* dev.anand.claudeskills.service.ProfileServiceImpl.updatePicture(..))")
+    public void profileMutations() {
+    }
+
+    @Around("taskMutations() || authOperations() || profileMutations()")
     public Object audit(ProceedingJoinPoint joinPoint) throws Throwable {
         String action = joinPoint.getSignature().getName();
         String actor = resolveActor(joinPoint.getArgs());

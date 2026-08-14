@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import AuthPage from './components/AuthPage'
+import Avatar from './components/Avatar'
+import ProfilePage from './components/ProfilePage'
 import TaskForm from './components/TaskForm'
 import TaskList from './components/TaskList'
 import { createTask, deleteTask, fetchTasks, updateTask } from './api/taskApi'
@@ -8,15 +10,24 @@ import type { Task, TaskPayload, TaskStatus } from './types/task'
 
 export default function App() {
   const { session } = useAuth()
+  const [view, setView] = useState<'dashboard' | 'profile'>('dashboard')
+
+  useEffect(() => {
+    if (!session) setView('dashboard')
+  }, [session])
 
   if (!session) {
     return <AuthPage />
   }
 
-  return <Dashboard />
+  if (view === 'profile') {
+    return <ProfilePage onBack={() => setView('dashboard')} />
+  }
+
+  return <Dashboard onOpenProfile={() => setView('profile')} />
 }
 
-function Dashboard() {
+function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
   const { session, logout } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -84,9 +95,17 @@ function Dashboard() {
             <span className="text-sm text-slate-500">
               {tasks.length} task{tasks.length === 1 ? '' : 's'}
             </span>
-            <span className="hidden text-sm font-medium text-slate-700 sm:inline">
-              {session?.username}
-            </span>
+            <button
+              type="button"
+              onClick={onOpenProfile}
+              title="My Profile"
+              className="flex items-center gap-2 rounded-full transition hover:opacity-80"
+            >
+              <Avatar username={session?.username ?? ''} />
+              <span className="hidden text-sm font-medium text-slate-700 sm:inline">
+                {session?.username}
+              </span>
+            </button>
             <button
               type="button"
               onClick={logout}

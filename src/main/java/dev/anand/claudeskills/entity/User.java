@@ -38,6 +38,12 @@ public class User {
     @Column(nullable = false, length = 20)
     private String role;
 
+    @Column(length = 100)
+    private String name;
+
+    @Column(name = "profile_picture", length = 255)
+    private String profilePicture;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

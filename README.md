@@ -72,6 +72,29 @@ All `/api/tasks` endpoints require a JWT. Obtain one from the auth endpoints
 | POST   | `/api/auth/token/refresh` | Issue a fresh token (requires a valid token) | 200 |
 | POST   | `/api/auth/logout`        | Record the logout time (requires a valid token) | 204 |
 
+## User Profile
+
+All `/api/profile` endpoints require a valid token and operate on the
+authenticated user:
+
+| Method | Path                    | Description | Success |
+|--------|-------------------------|-------------|---------|
+| GET    | `/api/profile`          | Current user's profile (username, name, email, picture flag) | 200 |
+| PUT    | `/api/profile`          | Update name, username, email — username/email must stay unique | 200 (400 validation, 409 duplicate) |
+| PUT    | `/api/profile/password` | Change password (requires the current password) | 204 (400 wrong/invalid password) |
+| POST   | `/api/profile/picture`  | Upload a profile picture (multipart `file`: JPEG/PNG/WebP, max 2MB) | 200 (400 bad type, 413 too large) |
+| GET    | `/api/profile/picture`  | Serve the stored profile picture | 200 (404 if none) |
+
+Notes:
+
+- The JWT subject is the username, so changing it returns a fresh token in the
+  response (`auth` field) — the React app switches to it automatically.
+- Pictures are stored under `uploads/` (gitignored, configurable via
+  `app.uploads.dir`); the filename is derived from the user id, never from
+  client input.
+- In the GUI, click your avatar in the header to open **My Profile** — edit
+  details, change the password, or upload a photo there.
+
 Example:
 
 ```bash
@@ -95,7 +118,7 @@ Details:
 Unit tests (Mockito — no database or Docker required):
 
 ```bash
-./mvnw test -Dtest="TaskServiceImplTest,TaskControllerTest,AuthServiceImplTest,AuthControllerTest,TokenControllerTest"
+./mvnw test -Dtest="TaskServiceImplTest,TaskControllerTest,AuthServiceImplTest,AuthControllerTest,TokenControllerTest,ProfileServiceImplTest,ProfileControllerTest"
 ```
 
 - `TaskServiceImplTest` — 8 tests for the task service layer (mocked repository)
@@ -103,6 +126,8 @@ Unit tests (Mockito — no database or Docker required):
 - `AuthServiceImplTest` — 7 tests for register/login/refresh logic (mocked repository, encoder, auth manager)
 - `AuthControllerTest` — 8 tests for the auth REST layer (validation, 401, 409, logout)
 - `TokenControllerTest` — 2 tests for the token refresh endpoint
+- `ProfileServiceImplTest` — 13 tests for profile update/uniqueness, password change, picture storage
+- `ProfileControllerTest` — 11 tests for the profile REST layer (validation, 409, multipart upload, 404)
 
 Full suite including the Testcontainers integration test (requires Docker running):
 
@@ -148,25 +173,25 @@ Example payload:
 
 ```
 ├── src/main/java/dev/anand/claudeskills/
-│   ├── controller/   TaskController, AuthController (register/login), TokenController (refresh)
-│   ├── service/      TaskService(Impl), AuthService(Impl), JwtService, AppUserDetailsService
+│   ├── controller/   TaskController, AuthController (register/login/logout), TokenController (refresh), ProfileController
+│   ├── service/      TaskService(Impl), AuthService(Impl), ProfileService(Impl), JwtService, AppUserDetailsService
 │   ├── repository/   TaskRepository, UserRepository (Spring Data JPA)
 │   ├── entity/       Task, User (JPA entities + Jakarta validation)
-│   ├── dto/          RegisterRequest, LoginRequest, AuthResponse
+│   ├── dto/          RegisterRequest, LoginRequest, AuthResponse, Profile* / ChangePasswordRequest
 │   ├── config/       SecurityConfig (JWT resource server, CORS), JwtProperties, OpenApiConfig
 │   ├── logging/      RequestLoggingAspect, AuditAspect, UserSessionAuditAspect, PerformanceAspect (Spring AOP)
 │   └── exception/    TaskNotFoundException, DuplicateResourceException, GlobalExceptionHandler
 ├── src/main/resources/
 │   ├── application.properties
 │   ├── logback-spring.xml    (separate rolling log files under logs/)
-│   └── db/migration/ Flyway SQL migrations (V1 tasks, V2 users)
+│   └── db/migration/ Flyway SQL migrations (V1 tasks, V2 users, V3 profile fields)
 ├── src/test/java/    Mockito unit tests + Testcontainers integration test
 └── frontend/         React + Vite + Tailwind GUI
     └── src/
-        ├── api/        client.ts (fetch + Bearer token), taskApi.ts, authApi.ts
+        ├── api/        client.ts (fetch + Bearer token), taskApi.ts, authApi.ts, profileApi.ts
         ├── auth/       AuthContext.tsx, session.ts (localStorage session)
-        ├── components/ AuthPage (sign in/up), TaskForm, TaskList
-        └── types/      task.ts, auth.ts
+        ├── components/ AuthPage (sign in/up), TaskForm, TaskList, ProfilePage, Avatar
+        └── types/      task.ts, auth.ts, profile.ts
 ```
 
 ## Logging

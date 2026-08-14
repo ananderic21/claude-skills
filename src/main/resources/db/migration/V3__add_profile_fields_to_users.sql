@@ -1,0 +1,3 @@
+ALTER TABLE users
+    ADD COLUMN name VARCHAR(100) NULL,
+    ADD COLUMN profile_picture VARCHAR(255) NULL;
