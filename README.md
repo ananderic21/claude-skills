@@ -2,7 +2,7 @@
 
 A full-stack Task Management application:
 
-- **Backend** — Java 21, Spring Boot 4.1, Spring Data JPA, Spring Security, Flyway, Lombok (Maven)
+- **Backend** — Java 21, Spring Boot 4.1, Spring Data JPA, Spring Security (JWT auth), Flyway, Lombok (Maven)
 - **Frontend** — React 19, TypeScript, Vite, Tailwind CSS v4
 - **Database** — MySQL 8
 
@@ -25,20 +25,27 @@ The backend connects to MySQL with these settings (see `src/main/resources/appli
 | Password | read from the `DB_PASSWORD` environment variable |
 | Schema   | `javadb` — created automatically on first run (`createDatabaseIfNotExist=true`) |
 
-The `tasks` table is created by the Flyway migration in
-`src/main/resources/db/migration/V1__create_tasks_table.sql` — no manual SQL needed.
+The `tasks` and `users` tables are created by the Flyway migrations in
+`src/main/resources/db/migration/` — no manual SQL needed.
 Just make sure MySQL is running.
 
 ## Run the Backend (port 8080)
 
-Set the database password first, then start the app:
+Two environment variables are required:
+
+| Variable      | Purpose |
+|---------------|---------|
+| `DB_PASSWORD` | MySQL password for the `root` user |
+| `JWT_SECRET`  | HMAC key used to sign auth tokens — at least 32 characters (generate one with `openssl rand -base64 48`) |
 
 ```bash
 export DB_PASSWORD=your_mysql_password
+export JWT_SECRET=$(openssl rand -base64 48)
 ./mvnw spring-boot:run
 ```
 
-In IntelliJ, add `DB_PASSWORD` under Run Configuration → Environment variables instead.
+In IntelliJ, add both under Run Configuration → Environment variables instead.
+The app fails fast at startup if either is missing.
 
 ## Run the Frontend / GUI (port 5173)
 
@@ -48,19 +55,53 @@ npm install        # first time only
 npm run dev
 ```
 
-Open **http://localhost:5173** — the Task Dashboard lets you create tasks,
-change their status (To Do / In Progress / Done), and delete them.
+Open **http://localhost:5173** — you'll land on the sign-in page. Create an
+account (or sign in), then the Task Dashboard lets you create tasks, change
+their status (To Do / In Progress / Done), and delete them. Use **Sign out**
+in the header to end the session.
+
+## Authentication
+
+All `/api/tasks` endpoints require a JWT. Obtain one from the auth endpoints
+(no token needed for register/login):
+
+| Method | Path                      | Description | Success |
+|--------|---------------------------|-------------|---------|
+| POST   | `/api/auth/register`      | Create an account, returns a token | 201 (400 validation, 409 duplicate) |
+| POST   | `/api/auth/login`         | Exchange credentials for a token   | 200 (401 bad credentials) |
+| POST   | `/api/auth/token/refresh` | Issue a fresh token (requires a valid token) | 200 |
+
+Example:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"anand","password":"your-password"}' | jq -r .token)
+
+curl http://localhost:8080/api/tasks -H "Authorization: Bearer $TOKEN"
+```
+
+Details:
+
+- Register payload: `{"username", "email", "password"}` — username 3–50 chars, password 8–72 chars.
+- Response: `{"token", "tokenType": "Bearer", "expiresInSeconds", "username"}`; tokens expire after 8 hours (`app.jwt.expiration-seconds`).
+- Tokens are HS256-signed JWTs (Spring Security OAuth2 Resource Server); passwords are stored BCrypt-hashed in the `users` table.
+- The React app stores the session in `localStorage` and logs you out automatically when the token expires or the API returns 401.
+- In Swagger UI, click **Authorize** and paste the token to call protected endpoints.
 
 ## Run the Tests
 
 Unit tests (Mockito — no database or Docker required):
 
 ```bash
-./mvnw test -Dtest="TaskServiceImplTest,TaskControllerTest"
+./mvnw test -Dtest="TaskServiceImplTest,TaskControllerTest,AuthServiceImplTest,AuthControllerTest,TokenControllerTest"
 ```
 
-- `TaskServiceImplTest` — 8 tests for the service layer (mocked repository)
-- `TaskControllerTest` — 9 tests for the REST layer (standalone MockMvc, mocked service)
+- `TaskServiceImplTest` — 8 tests for the task service layer (mocked repository)
+- `TaskControllerTest` — 9 tests for the task REST layer (standalone MockMvc, mocked service)
+- `AuthServiceImplTest` — 7 tests for register/login/refresh logic (mocked repository, encoder, auth manager)
+- `AuthControllerTest` — 7 tests for the auth REST layer (validation, 401, 409)
+- `TokenControllerTest` — 2 tests for the token refresh endpoint
 
 Full suite including the Testcontainers integration test (requires Docker running):
 
@@ -79,7 +120,8 @@ With the backend running:
 
 ## REST Endpoints
 
-Base URL: `http://localhost:8080/api/tasks`
+Base URL: `http://localhost:8080/api/tasks` — all require `Authorization: Bearer <token>`
+(requests without a valid token get **401**).
 
 | Method | Path              | Description        | Success |
 |--------|-------------------|--------------------|---------|
@@ -105,21 +147,23 @@ Example payload:
 
 ```
 ├── src/main/java/dev/anand/claudeskills/
-│   ├── controller/   TaskController (REST endpoints, CORS for :5173)
-│   ├── service/      TaskService + TaskServiceImpl (business logic)
-│   ├── repository/   TaskRepository (Spring Data JPA)
-│   ├── entity/       Task (JPA entity + Jakarta validation)
-│   ├── config/       SecurityConfig (permits /api/** and Swagger, CORS)
-│   └── exception/    TaskNotFoundException, GlobalExceptionHandler
+│   ├── controller/   TaskController, AuthController (register/login), TokenController (refresh)
+│   ├── service/      TaskService(Impl), AuthService(Impl), JwtService, AppUserDetailsService
+│   ├── repository/   TaskRepository, UserRepository (Spring Data JPA)
+│   ├── entity/       Task, User (JPA entities + Jakarta validation)
+│   ├── dto/          RegisterRequest, LoginRequest, AuthResponse
+│   ├── config/       SecurityConfig (JWT resource server, CORS), JwtProperties, OpenApiConfig
+│   └── exception/    TaskNotFoundException, DuplicateResourceException, GlobalExceptionHandler
 ├── src/main/resources/
 │   ├── application.properties
-│   └── db/migration/ Flyway SQL migrations
+│   └── db/migration/ Flyway SQL migrations (V1 tasks, V2 users)
 ├── src/test/java/    Mockito unit tests + Testcontainers integration test
 └── frontend/         React + Vite + Tailwind GUI
     └── src/
-        ├── api/        taskApi.ts (Fetch API client)
-        ├── components/ TaskForm, TaskList
-        └── types/      task.ts
+        ├── api/        client.ts (fetch + Bearer token), taskApi.ts, authApi.ts
+        ├── auth/       AuthContext.tsx, session.ts (localStorage session)
+        ├── components/ AuthPage (sign in/up), TaskForm, TaskList
+        └── types/      task.ts, auth.ts
 ```
 
 ----------------------------------------------------------------

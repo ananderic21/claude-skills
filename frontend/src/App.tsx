@@ -1,10 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
+import AuthPage from './components/AuthPage'
 import TaskForm from './components/TaskForm'
 import TaskList from './components/TaskList'
 import { createTask, deleteTask, fetchTasks, updateTask } from './api/taskApi'
+import { useAuth } from './auth/AuthContext'
 import type { Task, TaskPayload, TaskStatus } from './types/task'
 
 export default function App() {
+  const { session } = useAuth()
+
+  if (!session) {
+    return <AuthPage />
+  }
+
+  return <Dashboard />
+}
+
+function Dashboard() {
+  const { session, logout } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -67,9 +80,21 @@ export default function App() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <h1 className="text-xl font-bold text-slate-900">Task Dashboard</h1>
-          <span className="text-sm text-slate-500">
-            {tasks.length} task{tasks.length === 1 ? '' : 's'}
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-500">
+              {tasks.length} task{tasks.length === 1 ? '' : 's'}
+            </span>
+            <span className="hidden text-sm font-medium text-slate-700 sm:inline">
+              {session?.username}
+            </span>
+            <button
+              type="button"
+              onClick={logout}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
 
