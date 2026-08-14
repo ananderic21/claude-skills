@@ -223,4 +223,17 @@ class ProfileServiceImplTest {
         assertThatThrownBy(() -> profileService.getPicture("anand"))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    @Test
+    void updatePicture_withFileLargerThan2MB_throwsAndNeverSaves() {
+        when(userRepository.findByUsername("anand")).thenReturn(Optional.of(user));
+        byte[] oversized = new byte[2 * 1024 * 1024 + 1];
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "big.png", "image/png", oversized);
+
+        assertThatThrownBy(() -> profileService.updatePicture("anand", file))
+                .isInstanceOf(InvalidFileException.class)
+                .hasMessageContaining("2MB");
+        verify(userRepository, never()).save(any(User.class));
+    }
 }

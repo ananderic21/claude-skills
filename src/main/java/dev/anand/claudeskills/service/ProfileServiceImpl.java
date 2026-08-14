@@ -108,6 +108,9 @@ public class ProfileServiceImpl implements ProfileService {
         if (file == null || file.isEmpty()) {
             throw new InvalidFileException("Please select an image file");
         }
+        if (file.getSize() > 2L * 1024 * 1024) {
+            throw new InvalidFileException("Profile picture must be smaller than 2MB");
+        }
         String extension = EXTENSION_BY_CONTENT_TYPE.get(file.getContentType());
         if (extension == null) {
             throw new InvalidFileException("Only JPEG, PNG or WebP images are allowed");

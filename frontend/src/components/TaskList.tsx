@@ -3,6 +3,9 @@ import type { Task, TaskStatus } from '../types/task'
 interface TaskListProps {
   tasks: Task[]
   loading: boolean
+  selectedIds: Set<number>
+  onToggleSelect: (id: number) => void
+  onSelectAll: () => void
   onStatusChange: (task: Task, status: TaskStatus) => void
   onDelete: (id: number) => void
 }
@@ -19,7 +22,15 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   DONE: 'Done',
 }
 
-export default function TaskList({ tasks, loading, onStatusChange, onDelete }: TaskListProps) {
+export default function TaskList({
+  tasks,
+  loading,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
+  onStatusChange,
+  onDelete,
+}: TaskListProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center rounded-2xl bg-white p-12 shadow-sm ring-1 ring-slate-200">
@@ -37,11 +48,26 @@ export default function TaskList({ tasks, loading, onStatusChange, onDelete }: T
     )
   }
 
+  const allSelected = tasks.length > 0 && selectedIds.size === tasks.length
+  const someSelected = selectedIds.size > 0 && !allSelected
+
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
       <table className="min-w-full divide-y divide-slate-200">
         <thead className="bg-slate-50">
           <tr>
+            <th className="w-10 px-4 py-3">
+              <input
+                type="checkbox"
+                aria-label="Select all tasks"
+                checked={allSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = someSelected
+                }}
+                onChange={onSelectAll}
+                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-sky-300"
+              />
+            </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
               Task
             </th>
@@ -58,7 +84,19 @@ export default function TaskList({ tasks, loading, onStatusChange, onDelete }: T
         </thead>
         <tbody className="divide-y divide-slate-100">
           {tasks.map((task) => (
-            <tr key={task.id} className="transition hover:bg-slate-50">
+            <tr
+              key={task.id}
+              className={`transition hover:bg-slate-50 ${selectedIds.has(task.id) ? 'bg-sky-50' : ''}`}
+            >
+              <td className="px-4 py-3">
+                <input
+                  type="checkbox"
+                  aria-label={`Select "${task.title}"`}
+                  checked={selectedIds.has(task.id)}
+                  onChange={() => onToggleSelect(task.id)}
+                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-sky-300"
+                />
+              </td>
               <td className="px-4 py-3">
                 <span className="text-sm font-medium text-slate-900">{task.title}</span>
               </td>

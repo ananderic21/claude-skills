@@ -11,6 +11,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.RejectedExecutionException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -58,7 +59,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, String>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                .body(Map.of("error", "File is too large (max 2MB)"));
+                .body(Map.of("error", "File is too large (max 2MB for pictures, 100MB for imports)"));
+    }
+
+    @ExceptionHandler(RejectedExecutionException.class)
+    public ResponseEntity<Map<String, String>> handleRejectedExecution(RejectedExecutionException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("error", "Too many imports in progress — please try again shortly"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

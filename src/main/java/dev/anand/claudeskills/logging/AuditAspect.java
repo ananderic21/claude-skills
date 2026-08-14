@@ -34,7 +34,12 @@ public class AuditAspect {
     public void profileMutations() {
     }
 
-    @Around("taskMutations() || authOperations() || profileMutations()")
+    @Pointcut("execution(* dev.anand.claudeskills.service.TaskImportExportServiceImpl.exportTasks(..))"
+            + " || execution(* dev.anand.claudeskills.service.TaskImportExportServiceImpl.startImport(..))")
+    public void importExportOperations() {
+    }
+
+    @Around("taskMutations() || authOperations() || profileMutations() || importExportOperations()")
     public Object audit(ProceedingJoinPoint joinPoint) throws Throwable {
         String action = joinPoint.getSignature().getName();
         String actor = resolveActor(joinPoint.getArgs());

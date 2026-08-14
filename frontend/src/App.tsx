@@ -3,6 +3,7 @@ import AuthPage from './components/AuthPage'
 import Avatar from './components/Avatar'
 import ProfilePage from './components/ProfilePage'
 import TaskForm from './components/TaskForm'
+import TaskImportExport from './components/TaskImportExport'
 import TaskList from './components/TaskList'
 import { createTask, deleteTask, fetchTasks, updateTask } from './api/taskApi'
 import { useAuth } from './auth/AuthContext'
@@ -32,12 +33,14 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       setTasks(await fetchTasks())
+      setSelectedIds(new Set())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tasks')
     } finally {
@@ -77,9 +80,31 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
     try {
       await deleteTask(id)
       setTasks((prev) => prev.filter((t) => t.id !== id))
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete task')
+    }
+  }
+
+  const handleToggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === tasks.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(tasks.map((t) => t.id)))
     }
   }
 
@@ -140,13 +165,23 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
         )}
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-4">
             <TaskForm onSubmit={handleCreate} />
+            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+              <h2 className="mb-3 text-sm font-semibold text-slate-700">Import / Export</h2>
+              <TaskImportExport
+                selectedIds={Array.from(selectedIds)}
+                onImportComplete={loadTasks}
+              />
+            </div>
           </div>
           <div className="lg:col-span-2">
             <TaskList
               tasks={tasks}
               loading={loading}
+              selectedIds={selectedIds}
+              onToggleSelect={handleToggleSelect}
+              onSelectAll={handleSelectAll}
               onStatusChange={handleStatusChange}
               onDelete={handleDelete}
             />
