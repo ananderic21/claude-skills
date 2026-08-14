@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "exportedAt": "2026-08-14T09:00:00Z",
+  "count": 3,
+  "tasks": [
+    { "id": 999, "title": "Envelope format task A", "description": "id here is ignored; DB assigns a fresh one", "status": "TODO" },
+    { "id": 1000, "title": "Envelope format task B", "description": "Imported from an export file", "status": "DONE" },
+    { "id": 1001, "title": "Envelope format task C", "description": "", "status": "IN_PROGRESS" }
+  ]
+}

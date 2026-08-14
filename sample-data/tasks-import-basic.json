@@ -1,0 +1,7 @@
+[
+  { "title": "Set up CI pipeline", "description": "GitHub Actions build + test on push", "status": "TODO" },
+  { "title": "Write API docs", "description": "Document the task import/export endpoints", "status": "IN_PROGRESS" },
+  { "title": "Fix login redirect bug", "description": "Redirects to dashboard even when token expired", "status": "IN_PROGRESS" },
+  { "title": "Add dark mode toggle", "description": "Persist preference in localStorage", "status": "TODO" },
+  { "title": "Release v1.2.0", "description": "Tag, changelog, and deploy", "status": "DONE" }
+]

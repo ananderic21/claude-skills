@@ -167,13 +167,6 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="lg:col-span-1 space-y-4">
             <TaskForm onSubmit={handleCreate} />
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <h2 className="mb-3 text-sm font-semibold text-slate-700">Import / Export</h2>
-              <TaskImportExport
-                selectedIds={Array.from(selectedIds)}
-                onImportComplete={loadTasks}
-              />
-            </div>
           </div>
           <div className="lg:col-span-2">
             <TaskList
@@ -184,6 +177,12 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
               onSelectAll={handleSelectAll}
               onStatusChange={handleStatusChange}
               onDelete={handleDelete}
+              toolbar={
+                <TaskImportExport
+                  selectedIds={Array.from(selectedIds)}
+                  onImportComplete={loadTasks}
+                />
+              }
             />
           </div>
         </div>

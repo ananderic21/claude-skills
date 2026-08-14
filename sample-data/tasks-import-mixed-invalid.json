@@ -1,0 +1,7 @@
+[
+  { "title": "Valid task, should import", "description": "Good row", "status": "TODO" },
+  { "description": "Missing title -> skipped", "status": "TODO" },
+  { "title": "Bad status -> skipped", "description": "status not in TODO/IN_PROGRESS/DONE", "status": "URGENT" },
+  { "title": "Another valid task", "description": "Also good", "status": "DONE" },
+  { "title": "", "description": "Blank title -> skipped", "status": "IN_PROGRESS" }
+]

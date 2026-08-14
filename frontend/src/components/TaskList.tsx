@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Task, TaskStatus } from '../types/task'
 
 interface TaskListProps {
@@ -8,6 +9,7 @@ interface TaskListProps {
   onSelectAll: () => void
   onStatusChange: (task: Task, status: TaskStatus) => void
   onDelete: (id: number) => void
+  toolbar?: ReactNode
 }
 
 const STATUS_STYLES: Record<TaskStatus, string> = {
@@ -30,30 +32,29 @@ export default function TaskList({
   onSelectAll,
   onStatusChange,
   onDelete,
+  toolbar,
 }: TaskListProps) {
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center rounded-2xl bg-white p-12 shadow-sm ring-1 ring-slate-200">
-        <p className="text-sm text-slate-500">Loading tasks…</p>
-      </div>
-    )
-  }
-
-  if (tasks.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl bg-white p-12 shadow-sm ring-1 ring-slate-200">
-        <p className="text-base font-medium text-slate-700">No tasks yet</p>
-        <p className="mt-1 text-sm text-slate-500">Create your first task using the form.</p>
-      </div>
-    )
-  }
-
   const allSelected = tasks.length > 0 && selectedIds.size === tasks.length
   const someSelected = selectedIds.size > 0 && !allSelected
 
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-      <table className="min-w-full divide-y divide-slate-200">
+      <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-sm font-semibold text-slate-700">Tasks</h2>
+        {toolbar}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center p-12">
+          <p className="text-sm text-slate-500">Loading tasks…</p>
+        </div>
+      ) : tasks.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-12">
+          <p className="text-base font-medium text-slate-700">No tasks yet</p>
+          <p className="mt-1 text-sm text-slate-500">Create your first task using the form.</p>
+        </div>
+      ) : (
+        <table className="min-w-full divide-y divide-slate-200">
         <thead className="bg-slate-50">
           <tr>
             <th className="w-10 px-4 py-3">
@@ -130,6 +131,7 @@ export default function TaskList({
           ))}
         </tbody>
       </table>
+      )}
     </div>
   )
 }
