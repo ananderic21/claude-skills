@@ -1,5 +1,6 @@
 package dev.anand.claudeskills.service;
 
+import dev.anand.claudeskills.dto.TaskPageResponse;
 import dev.anand.claudeskills.entity.Task;
 import dev.anand.claudeskills.exception.TaskNotFoundException;
 import dev.anand.claudeskills.repository.TaskRepository;
@@ -10,6 +11,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,6 +57,49 @@ class TaskServiceImplTest {
         assertEquals(1, result.size());
         assertEquals("Write tests", result.get(0).getTitle());
         verify(taskRepository).findAll();
+    }
+
+    @Test
+    void getTasks_withoutStatus_usesFindAllAndReturnsGlobalCounts() {
+        when(taskRepository.findAll(any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(task), PageRequest.of(0, 10), 1));
+        when(taskRepository.countByStatus("TODO")).thenReturn(5L);
+        when(taskRepository.countByStatus("IN_PROGRESS")).thenReturn(2L);
+        when(taskRepository.countByStatus("DONE")).thenReturn(3L);
+
+        TaskPageResponse response = taskService.getTasks(null, 0, 10);
+
+        assertEquals(1, response.tasks().size());
+        assertEquals(0, response.page());
+        assertEquals(1, response.totalElements());
+        assertEquals(5L, response.todoCount());
+        assertEquals(2L, response.inProgressCount());
+        assertEquals(3L, response.doneCount());
+        verify(taskRepository).findAll(any(Pageable.class));
+        verify(taskRepository, never()).findByStatus(any(), any());
+    }
+
+    @Test
+    void getTasks_withStatus_filtersByStatus() {
+        when(taskRepository.findByStatus(eq("DONE"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(task), PageRequest.of(0, 10), 1));
+
+        TaskPageResponse response = taskService.getTasks("DONE", 0, 10);
+
+        assertEquals(1, response.tasks().size());
+        verify(taskRepository).findByStatus(eq("DONE"), any(Pageable.class));
+        verify(taskRepository, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void getTasks_clampsOversizedPageSizeTo100() {
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        when(taskRepository.findAll(captor.capture()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 100), 0));
+
+        taskService.getTasks(null, 0, 9999);
+
+        assertEquals(100, captor.getValue().getPageSize());
     }
 
     @Test

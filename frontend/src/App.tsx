@@ -5,9 +5,12 @@ import ProfilePage from './components/ProfilePage'
 import TaskForm from './components/TaskForm'
 import TaskImportExport from './components/TaskImportExport'
 import TaskList from './components/TaskList'
-import { createTask, deleteTask, fetchTasks, updateTask } from './api/taskApi'
+import { createTask, deleteTask, fetchTaskPage, updateTask } from './api/taskApi'
 import { useAuth } from './auth/AuthContext'
 import type { Task, TaskPayload, TaskStatus } from './types/task'
+
+type StatusFilter = TaskStatus | 'ALL'
+const PAGE_SIZE = 10
 
 export default function App() {
   const { session } = useAuth()
@@ -34,29 +37,52 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
+  const [counts, setCounts] = useState({ todo: 0, inProgress: 0, done: 0 })
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      setTasks(await fetchTasks())
+      const result = await fetchTaskPage(statusFilter, page, PAGE_SIZE)
+      // If a delete/filter emptied the current page, step back to the last real page
+      if (result.tasks.length === 0 && result.totalPages > 0 && page > result.totalPages - 1) {
+        setPage(result.totalPages - 1)
+        return
+      }
+      setTasks(result.tasks)
+      setTotalPages(result.totalPages)
+      setTotalElements(result.totalElements)
+      setCounts({
+        todo: result.todoCount,
+        inProgress: result.inProgressCount,
+        done: result.doneCount,
+      })
       setSelectedIds(new Set())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tasks')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [statusFilter, page])
 
   useEffect(() => {
     void loadTasks()
   }, [loadTasks])
 
+  const handleFilterChange = (value: StatusFilter) => {
+    setStatusFilter(value)
+    setPage(0)
+  }
+
   const handleCreate = async (payload: TaskPayload) => {
     try {
-      const created = await createTask(payload)
-      setTasks((prev) => [...prev, created])
+      await createTask(payload)
       setError(null)
+      await loadTasks()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create task')
     }
@@ -64,13 +90,13 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
 
   const handleStatusChange = async (task: Task, status: TaskStatus) => {
     try {
-      const updated = await updateTask(task.id, {
+      await updateTask(task.id, {
         title: task.title,
         description: task.description ?? '',
         status,
       })
-      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
       setError(null)
+      await loadTasks()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update task')
     }
@@ -79,13 +105,8 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
   const handleDelete = async (id: number) => {
     try {
       await deleteTask(id)
-      setTasks((prev) => prev.filter((t) => t.id !== id))
-      setSelectedIds((prev) => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
       setError(null)
+      await loadTasks()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete task')
     }
@@ -108,8 +129,9 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
     }
   }
 
-  const doneCount = tasks.filter((t) => t.status === 'DONE').length
-  const inProgressCount = tasks.filter((t) => t.status === 'IN_PROGRESS').length
+  const totalCount = counts.todo + counts.inProgress + counts.done
+  const doneCount = counts.done
+  const inProgressCount = counts.inProgress
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -118,7 +140,7 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
           <h1 className="text-xl font-bold text-slate-900">Task Dashboard</h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-500">
-              {tasks.length} task{tasks.length === 1 ? '' : 's'}
+              {totalCount} task{totalCount === 1 ? '' : 's'}
             </span>
             <button
               type="button"
@@ -146,7 +168,7 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <p className="text-sm font-medium text-slate-500">Total Tasks</p>
-            <p className="mt-1 text-3xl font-bold text-slate-900">{tasks.length}</p>
+            <p className="mt-1 text-3xl font-bold text-slate-900">{totalCount}</p>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <p className="text-sm font-medium text-slate-500">In Progress</p>
@@ -183,6 +205,13 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
                   onImportComplete={loadTasks}
                 />
               }
+              statusFilter={statusFilter}
+              onStatusFilterChange={handleFilterChange}
+              page={page}
+              totalPages={totalPages}
+              totalElements={totalElements}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
             />
           </div>
         </div>

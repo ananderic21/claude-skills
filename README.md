@@ -149,13 +149,14 @@ With the backend running:
 Base URL: `http://localhost:8080/api/tasks` — all require `Authorization: Bearer <token>`
 (requests without a valid token get **401**).
 
-| Method | Path              | Description        | Success |
-|--------|-------------------|--------------------|---------|
-| GET    | `/api/tasks`      | List all tasks     | 200 |
-| GET    | `/api/tasks/{id}` | Get one task       | 200 (404 if missing) |
-| POST   | `/api/tasks`      | Create a task      | 201 (400 on validation error) |
-| PUT    | `/api/tasks/{id}` | Update a task      | 200 (404 if missing) |
-| DELETE | `/api/tasks/{id}` | Delete a task      | 204 (404 if missing) |
+| Method | Path              | Description                       | Success |
+|--------|-------------------|-----------------------------------|---------|
+| GET    | `/api/tasks`      | List all tasks (unpaged)          | 200 |
+| GET    | `/api/tasks/page` | List tasks paged + filtered       | 200 |
+| GET    | `/api/tasks/{id}` | Get one task                      | 200 (404 if missing) |
+| POST   | `/api/tasks`      | Create a task                     | 201 (400 on validation error) |
+| PUT    | `/api/tasks/{id}` | Update a task                     | 200 (404 if missing) |
+| DELETE | `/api/tasks/{id}` | Delete a task                     | 204 (404 if missing) |
 
 Example payload:
 
@@ -168,6 +169,44 @@ Example payload:
 ```
 
 `status` must be one of `TODO`, `IN_PROGRESS`, `DONE`.
+
+### Pagination & filtering
+
+`GET /api/tasks/page` returns one page of tasks (sorted by `id`) plus the global
+per-status counts, so the dashboard stat cards stay accurate independent of the
+current page or filter.
+
+| Query param | Default | Notes |
+|-------------|---------|-------|
+| `status`    | *(none)* | Filter by `TODO`, `IN_PROGRESS`, or `DONE`. Omit for all statuses. |
+| `page`      | `0`      | Zero-based page index. |
+| `size`      | `10`     | Rows per page. Clamped to a maximum of `100`. |
+
+```bash
+curl "http://localhost:8080/api/tasks/page?status=TODO&page=0&size=10" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Response:
+
+```json
+{
+  "tasks": [
+    { "id": 1, "title": "Ship the release", "description": "Optional details", "status": "TODO" }
+  ],
+  "page": 0,
+  "size": 10,
+  "totalElements": 1,
+  "totalPages": 1,
+  "todoCount": 1,
+  "inProgressCount": 0,
+  "doneCount": 0
+}
+```
+
+`totalElements` / `totalPages` reflect the **filtered** result set (used to drive
+the pager), while `todoCount` / `inProgressCount` / `doneCount` are always counts
+across the whole table.
 
 ## Project Structure
 

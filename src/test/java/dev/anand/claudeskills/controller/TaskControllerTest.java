@@ -1,6 +1,7 @@
 package dev.anand.claudeskills.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.anand.claudeskills.dto.TaskPageResponse;
 import dev.anand.claudeskills.entity.Task;
 import dev.anand.claudeskills.exception.GlobalExceptionHandler;
 import dev.anand.claudeskills.exception.TaskNotFoundException;
@@ -68,6 +69,36 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].title").value("Write tests"))
                 .andExpect(jsonPath("$[0].status").value("TODO"));
+    }
+
+    @Test
+    void getTasksPage_passesFilterAndPagingToService() throws Exception {
+        TaskPageResponse pageResponse = new TaskPageResponse(
+                List.of(task), 0, 10, 1, 1, 4, 2, 3);
+        when(taskService.getTasks(eq("TODO"), eq(0), eq(10))).thenReturn(pageResponse);
+
+        mockMvc.perform(get("/api/tasks/page")
+                        .param("status", "TODO")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tasks.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.todoCount").value(4))
+                .andExpect(jsonPath("$.doneCount").value(3));
+
+        verify(taskService).getTasks("TODO", 0, 10);
+    }
+
+    @Test
+    void getTasksPage_withoutParams_usesDefaults() throws Exception {
+        when(taskService.getTasks(null, 0, 10))
+                .thenReturn(new TaskPageResponse(List.of(), 0, 10, 0, 0, 0, 0, 0));
+
+        mockMvc.perform(get("/api/tasks/page"))
+                .andExpect(status().isOk());
+
+        verify(taskService).getTasks(null, 0, 10);
     }
 
     @Test

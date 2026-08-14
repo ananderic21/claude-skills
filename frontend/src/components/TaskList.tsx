@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import type { Task, TaskStatus } from '../types/task'
 
+type StatusFilter = TaskStatus | 'ALL'
+
 interface TaskListProps {
   tasks: Task[]
   loading: boolean
@@ -10,7 +12,21 @@ interface TaskListProps {
   onStatusChange: (task: Task, status: TaskStatus) => void
   onDelete: (id: number) => void
   toolbar?: ReactNode
+  statusFilter: StatusFilter
+  onStatusFilterChange: (value: StatusFilter) => void
+  page: number
+  totalPages: number
+  totalElements: number
+  pageSize: number
+  onPageChange: (page: number) => void
 }
+
+const FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'ALL', label: 'All statuses' },
+  { value: 'TODO', label: 'To Do' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'DONE', label: 'Done' },
+]
 
 const STATUS_STYLES: Record<TaskStatus, string> = {
   TODO: 'bg-amber-100 text-amber-800',
@@ -33,14 +49,38 @@ export default function TaskList({
   onStatusChange,
   onDelete,
   toolbar,
+  statusFilter,
+  onStatusFilterChange,
+  page,
+  totalPages,
+  totalElements,
+  pageSize,
+  onPageChange,
 }: TaskListProps) {
   const allSelected = tasks.length > 0 && selectedIds.size === tasks.length
   const someSelected = selectedIds.size > 0 && !allSelected
 
+  const rangeStart = totalElements === 0 ? 0 : page * pageSize + 1
+  const rangeEnd = Math.min(page * pageSize + tasks.length, totalElements)
+
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
       <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-sm font-semibold text-slate-700">Tasks</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-semibold text-slate-700">Tasks</h2>
+          <select
+            aria-label="Filter tasks by status"
+            value={statusFilter}
+            onChange={(e) => onStatusFilterChange(e.target.value as StatusFilter)}
+            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-300"
+          >
+            {FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
         {toolbar}
       </div>
 
@@ -131,6 +171,37 @@ export default function TaskList({
           ))}
         </tbody>
       </table>
+      )}
+
+      {!loading && totalElements > 0 && (
+        <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Showing <span className="font-medium text-slate-900">{rangeStart}</span>–
+            <span className="font-medium text-slate-900">{rangeEnd}</span> of{' '}
+            <span className="font-medium text-slate-900">{totalElements}</span>
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onPageChange(page - 1)}
+              disabled={page <= 0}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span className="px-1 text-slate-500">
+              Page {page + 1} of {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => onPageChange(page + 1)}
+              disabled={page >= totalPages - 1}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

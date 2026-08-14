@@ -1,5 +1,6 @@
 package dev.anand.claudeskills.service;
 
+import dev.anand.claudeskills.dto.TaskPageResponse;
 import dev.anand.claudeskills.entity.Task;
 
 import java.util.List;
@@ -7,6 +8,8 @@ import java.util.List;
 public interface TaskService {
 
     List<Task> getAllTasks();
+
+    TaskPageResponse getTasks(String status, int page, int size);
 
     Task getTaskById(Long id);
 

@@ -12,3 +12,14 @@ export interface TaskPayload {
   description: string
   status: TaskStatus
 }
+
+export interface TaskPage {
+  tasks: Task[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  todoCount: number
+  inProgressCount: number
+  doneCount: number
+}
