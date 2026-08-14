@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { login as apiLogin, register as apiRegister } from '../api/authApi'
+import { login as apiLogin, logout as apiLogout, register as apiRegister } from '../api/authApi'
 import type { LoginPayload, RegisterPayload } from '../types/auth'
 import { clearSession, loadSession, saveSession, UNAUTHORIZED_EVENT } from './session'
 import type { Session } from './session'
@@ -17,15 +17,23 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(() => loadSession())
 
-  const logout = useCallback(() => {
+  const clearLocalSession = useCallback(() => {
     clearSession()
     setSession(null)
   }, [])
 
+  const logout = useCallback(() => {
+    // Best-effort: records the logout time server-side; the local session is
+    // cleared regardless of whether the call succeeds.
+    apiLogout().catch(() => {})
+    clearLocalSession()
+  }, [clearLocalSession])
+
   useEffect(() => {
-    window.addEventListener(UNAUTHORIZED_EVENT, logout)
-    return () => window.removeEventListener(UNAUTHORIZED_EVENT, logout)
-  }, [logout])
+    // On 401 only clear locally — calling the logout API here would 401 again
+    window.addEventListener(UNAUTHORIZED_EVENT, clearLocalSession)
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, clearLocalSession)
+  }, [clearLocalSession])
 
   const login = useCallback(async (payload: LoginPayload) => {
     setSession(saveSession(await apiLogin(payload)))

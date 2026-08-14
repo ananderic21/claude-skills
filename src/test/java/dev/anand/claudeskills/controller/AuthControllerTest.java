@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -141,5 +142,14 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.username").value("Username is required"));
 
         verify(authService, never()).login(any(LoginRequest.class));
+    }
+
+    @Test
+    void logout_withAuthenticatedUser_returns204AndCallsService() throws Exception {
+        mockMvc.perform(post("/api/auth/logout")
+                        .principal(new UsernamePasswordAuthenticationToken("anand", null)))
+                .andExpect(status().isNoContent());
+
+        verify(authService).logout("anand");
     }
 }

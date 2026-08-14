@@ -70,6 +70,7 @@ All `/api/tasks` endpoints require a JWT. Obtain one from the auth endpoints
 | POST   | `/api/auth/register`      | Create an account, returns a token | 201 (400 validation, 409 duplicate) |
 | POST   | `/api/auth/login`         | Exchange credentials for a token   | 200 (401 bad credentials) |
 | POST   | `/api/auth/token/refresh` | Issue a fresh token (requires a valid token) | 200 |
+| POST   | `/api/auth/logout`        | Record the logout time (requires a valid token) | 204 |
 
 Example:
 
@@ -86,7 +87,7 @@ Details:
 - Register payload: `{"username", "email", "password"}` — username 3–50 chars, password 8–72 chars.
 - Response: `{"token", "tokenType": "Bearer", "expiresInSeconds", "username"}`; tokens expire after 8 hours (`app.jwt.expiration-seconds`).
 - Tokens are HS256-signed JWTs (Spring Security OAuth2 Resource Server); passwords are stored BCrypt-hashed in the `users` table.
-- The React app stores the session in `localStorage` and logs you out automatically when the token expires or the API returns 401.
+- The React app stores the session in `localStorage` and logs you out automatically when the token expires or the API returns 401. **Sign out** also calls `/api/auth/logout` so the logout time lands in `logs/user_audit.log`.
 - In Swagger UI, click **Authorize** and paste the token to call protected endpoints.
 
 ## Run the Tests
@@ -100,7 +101,7 @@ Unit tests (Mockito — no database or Docker required):
 - `TaskServiceImplTest` — 8 tests for the task service layer (mocked repository)
 - `TaskControllerTest` — 9 tests for the task REST layer (standalone MockMvc, mocked service)
 - `AuthServiceImplTest` — 7 tests for register/login/refresh logic (mocked repository, encoder, auth manager)
-- `AuthControllerTest` — 7 tests for the auth REST layer (validation, 401, 409)
+- `AuthControllerTest` — 8 tests for the auth REST layer (validation, 401, 409, logout)
 - `TokenControllerTest` — 2 tests for the token refresh endpoint
 
 Full suite including the Testcontainers integration test (requires Docker running):
@@ -153,7 +154,7 @@ Example payload:
 │   ├── entity/       Task, User (JPA entities + Jakarta validation)
 │   ├── dto/          RegisterRequest, LoginRequest, AuthResponse
 │   ├── config/       SecurityConfig (JWT resource server, CORS), JwtProperties, OpenApiConfig
-│   ├── logging/      RequestLoggingAspect, AuditAspect, PerformanceAspect (Spring AOP)
+│   ├── logging/      RequestLoggingAspect, AuditAspect, UserSessionAuditAspect, PerformanceAspect (Spring AOP)
 │   └── exception/    TaskNotFoundException, DuplicateResourceException, GlobalExceptionHandler
 ├── src/main/resources/
 │   ├── application.properties
@@ -177,6 +178,7 @@ separate rolling files under `logs/` (gitignored; rolled daily and gzipped):
 |------|---------------|----------|
 | `logs/request.log` | `RequestLoggingAspect` | Every API request/response: HTTP method, URI, authenticated user, client IP, handler, sanitized args, status or exception |
 | `logs/audit.log` | `AuditAspect` | Who did what: register/login/refresh and task create/update/delete with actor, outcome SUCCESS/FAILURE, and details (kept 90 days) |
+| `logs/user_audit.log` | `UserSessionAuditAspect` | User login and logout times: `event=LOGIN/LOGOUT \| user \| outcome` — failed logins are logged as WARN with the reason (kept 90 days) |
 | `logs/performance.log` | `PerformanceAspect` | Time taken by each controller and service method; entries over `app.logging.slow-threshold-ms` (default 500) are logged as `WARN SLOW` |
 
 Every request gets a short correlation id (e.g. `[1b102b63]`) shared across all

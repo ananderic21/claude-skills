@@ -63,4 +63,10 @@ public class AuthServiceImpl implements AuthService {
         String token = jwtService.generateToken(user.getUsername(), user.getRole());
         return AuthResponse.bearer(token, jwtService.getExpirationSeconds(), user.getUsername());
     }
+
+    @Override
+    public void logout(String username) {
+        // Stateless JWTs cannot be revoked server-side; this hook exists so the
+        // logout time is recorded by the audit aspects.
+    }
 }

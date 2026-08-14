@@ -15,6 +15,10 @@ export function register(payload: RegisterPayload): Promise<AuthResponse> {
   })
 }
 
+export function logout(): Promise<void> {
+  return apiFetch<void>('/api/auth/logout', { method: 'POST' })
+}
+
 export function refreshToken(): Promise<AuthResponse> {
   return apiFetch<AuthResponse>('/api/auth/token/refresh', { method: 'POST' })
 }
