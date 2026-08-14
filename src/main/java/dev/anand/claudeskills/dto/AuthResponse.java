@@ -9,4 +9,10 @@ public record AuthResponse(
     public static AuthResponse bearer(String token, long expiresInSeconds, String username) {
         return new AuthResponse(token, "Bearer", expiresInSeconds, username);
     }
+
+    @Override
+    public String toString() {
+        return "AuthResponse[token=***, tokenType=" + tokenType
+                + ", expiresInSeconds=" + expiresInSeconds + ", username=" + username + "]";
+    }
 }

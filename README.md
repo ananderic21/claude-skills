@@ -153,9 +153,11 @@ Example payload:
 │   ├── entity/       Task, User (JPA entities + Jakarta validation)
 │   ├── dto/          RegisterRequest, LoginRequest, AuthResponse
 │   ├── config/       SecurityConfig (JWT resource server, CORS), JwtProperties, OpenApiConfig
+│   ├── logging/      RequestLoggingAspect, AuditAspect, PerformanceAspect (Spring AOP)
 │   └── exception/    TaskNotFoundException, DuplicateResourceException, GlobalExceptionHandler
 ├── src/main/resources/
 │   ├── application.properties
+│   ├── logback-spring.xml    (separate rolling log files under logs/)
 │   └── db/migration/ Flyway SQL migrations (V1 tasks, V2 users)
 ├── src/test/java/    Mockito unit tests + Testcontainers integration test
 └── frontend/         React + Vite + Tailwind GUI
@@ -166,69 +168,28 @@ Example payload:
         └── types/      task.ts, auth.ts
 ```
 
+## Logging
+
+Three Spring AOP aspects (`@Around` advice in the `logging` package) write to
+separate rolling files under `logs/` (gitignored; rolled daily and gzipped):
+
+| File | Logger/Aspect | Contents |
+|------|---------------|----------|
+| `logs/request.log` | `RequestLoggingAspect` | Every API request/response: HTTP method, URI, authenticated user, client IP, handler, sanitized args, status or exception |
+| `logs/audit.log` | `AuditAspect` | Who did what: register/login/refresh and task create/update/delete with actor, outcome SUCCESS/FAILURE, and details (kept 90 days) |
+| `logs/performance.log` | `PerformanceAspect` | Time taken by each controller and service method; entries over `app.logging.slow-threshold-ms` (default 500) are logged as `WARN SLOW` |
+
+Every request gets a short correlation id (e.g. `[1b102b63]`) shared across all
+three files, so you can trace a single request end to end. Passwords and JWT
+tokens are always masked (`password=***`) via the DTOs' `toString()` overrides.
+
 ----------------------------------------------------------------
 
 
 --------------------------------------------------------------------------------------------------------------
 /opt/homebrew/bin/claude
 --------------------------------------------------------------------------------------------------------------
-
-⏺ Everything works end to end. Both servers are running and every operation passed:
-
-┌───────────────────────────┬────────────────────────────────────────────────────────────────────┐
-│           Check           │                               Result                               │
-├───────────────────────────┼────────────────────────────────────────────────────────────────────┤
-│ GET /api/tasks            │ 200, returns [] then the created task                              │
-├───────────────────────────┼────────────────────────────────────────────────────────────────────┤
-│ POST create               │ 201, returned {"id":1, "title":"Test integration", ...}            │
-├───────────────────────────┼────────────────────────────────────────────────────────────────────┤
-│ POST blank title          │ 400 with {"title":"Title is required"} — validation working        │
-├───────────────────────────┼────────────────────────────────────────────────────────────────────┤
-│ CORS preflight from :5173 │ 200 with access-control-allow-origin: http://localhost:5173        │
-├───────────────────────────┼────────────────────────────────────────────────────────────────────┤
-│ PUT status → DONE         │ 200, updated entity returned                                       │
-├───────────────────────────┼────────────────────────────────────────────────────────────────────┤
-│ DELETE                    │ 204, and a follow-up GET correctly returns 404 with the error JSON │
-├───────────────────────────┼────────────────────────────────────────────────────────────────────┤
-│ Vite dev server           │ Serving on http://localhost:5173                                   │
-└───────────────────────────┴────────────────────────────────────────────────────────────────────┘
-
-Flyway ran the V1 migration against javadb on startup, and the test task I created was deleted afterward, so the database is clean.
-
-I've left both servers running in the background — open http://localhost:5173 in your browser to see the dashboard talking to the live API. Backend logs
-are in /tmp/backend.log, frontend logs in /tmp/frontend.log. Say the word if you want me to stop them.
-
-API docs are live. Springdoc 2.8.6 works fine with your Boot 4.1 setup — both endpoints return 200 and the spec correctly documents all the /api/tasks
-operations.
-
-Your API documentation URLs:
-
-- Swagger UI (interactive): http://localhost:8080/swagger-ui.html
-- Raw OpenAPI 3.1 spec (JSON): http://localhost:8080/v3/api-docs
- --------------------------------------------------------------------------------------------------------------
-
- --------------------------------------------------------------------------------------------------------------
-⏺ All 17 tests passed — 0 failures, 0 errors. BUILD SUCCESS.
-
-TaskControllerTest — 9/9 passed (0.78s)
-│ 0      │
-┌─────┬──────────────────────────────────────────────────────────┬─────────┬────────┐
-│  #  │                           Test                           │ Result │ 0 Time │
-├─────┼──────────────────────────────────────────────────────────┼─────────┼────────┤
-│ 1   │ getAllTasks_returns200WithTaskList                       │ ✅  PASS │ 0.014s │
-├─────┼──────────────────────────────────────────────────────────┼─────────┼────────┤
-│ 2   │ getTaskById_whenTaskExists_returns200WithTask            │ ✅  PASS │ 0.006s │
-├─────┼──────────────────────────────────────────────────────────┼─────────┼────────┤
-│ 3   │ getTaskById_whenTaskMissing_returns404WithErrorBody      │ ✅  PASS │ 0.006s │
-├─────┼──────────────────────────────────────────────────────────┼─────────┼────────┤
-│ 4   │ createTask_withValidBody_returns201WithCreatedTask       │ ✅  PASS │ 0.010s │
-├─────┼──────────────────────────────────────────────────────────┼─────────┼────────┤
-│ 5   │ createTask_withBlankTitle_returns400AndNeverCallsService │ ✅  PASS │ 0.016s │
-├─────┼──────────────────────────────────────────────────────────┼─────────┼────────┤
-│ 6   │ createTask_withInvalidStatus_returns400                  │ ✅  PASS │ 0.640s │
-├─────┼──────────────────────────────────────────────────────────┼─────────┼────────┤
-│ 7   │ updateTask_withValidBody_returns200WithUpdatedTask       │ ✅  PASS │ 0.010s │
- --------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
 #Claude Code Query
 --------------------------------------------------------------------------------------------------------------
 Act as an expert Senior Full-Stack Engineer specializing in Java, Spring Boot 3.x, and React 18+ (using TypeScript and Vite).
