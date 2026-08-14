@@ -202,6 +202,8 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
               toolbar={
                 <TaskImportExport
                   selectedIds={Array.from(selectedIds)}
+                  statusFilter={statusFilter}
+                  filteredCount={totalElements}
                   onImportComplete={loadTasks}
                 />
               }

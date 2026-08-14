@@ -1,11 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
-import { exportTasks, pollImportStatus, startImport } from '../api/taskIoApi'
+import { exportTasks, exportTasksByStatus, pollImportStatus, startImport } from '../api/taskIoApi'
 import type { ImportJobStatus } from '../types/taskIo'
+import type { TaskStatus } from '../types/task'
 
 const MAX_IMPORT_BYTES = 100 * 1024 * 1024
 
+type StatusFilter = TaskStatus | 'ALL'
+
+const FILTER_LABELS: Record<StatusFilter, string> = {
+  ALL: 'tasks',
+  TODO: 'To Do',
+  IN_PROGRESS: 'In Progress',
+  DONE: 'Done',
+}
+
 interface Props {
   selectedIds: number[]
+  statusFilter: StatusFilter
+  filteredCount: number
   onImportComplete: () => void
 }
 
@@ -18,9 +30,15 @@ const BANNER_STYLES: Record<Banner['kind'], string> = {
   progress: 'border-amber-200 bg-amber-50 text-amber-700',
 }
 
-export default function TaskImportExport({ selectedIds, onImportComplete }: Props) {
+export default function TaskImportExport({
+  selectedIds,
+  statusFilter,
+  filteredCount,
+  onImportComplete,
+}: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [exporting, setExporting] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [banner, setBanner] = useState<Banner | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -31,21 +49,33 @@ export default function TaskImportExport({ selectedIds, onImportComplete }: Prop
     }
   }, [])
 
-  const handleExport = async () => {
-    if (selectedIds.length === 0) {
-      setBanner({ kind: 'error', text: 'Select at least one task to export' })
-      return
-    }
+  const runExport = async (fn: () => Promise<void>, successText: string) => {
+    setMenuOpen(false)
     setExporting(true)
     setBanner(null)
     try {
-      await exportTasks(selectedIds)
-      setBanner({ kind: 'success', text: `Exported ${selectedIds.length} task${selectedIds.length === 1 ? '' : 's'}` })
+      await fn()
+      setBanner({ kind: 'success', text: successText })
     } catch (err) {
       setBanner({ kind: 'error', text: err instanceof Error ? err.message : 'Export failed' })
     } finally {
       setExporting(false)
     }
+  }
+
+  const handleExportSelected = () => {
+    if (selectedIds.length === 0) {
+      setMenuOpen(false)
+      setBanner({ kind: 'error', text: 'Select at least one task to export' })
+      return
+    }
+    const n = selectedIds.length
+    void runExport(() => exportTasks(selectedIds), `Exported ${n} selected task${n === 1 ? '' : 's'}`)
+  }
+
+  const handleExportAll = () => {
+    const label = statusFilter === 'ALL' ? 'all tasks' : `all ${FILTER_LABELS[statusFilter]} tasks`
+    void runExport(() => exportTasksByStatus(statusFilter), `Exported ${label}`)
   }
 
   const handleFileSelected = async (file: File | undefined) => {
@@ -135,16 +165,59 @@ export default function TaskImportExport({ selectedIds, onImportComplete }: Prop
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={exporting || selectedIds.length === 0}
-          onClick={handleExport}
-          title={selectedIds.length === 0 ? 'Select tasks to export' : `Export ${selectedIds.length} selected task${selectedIds.length === 1 ? '' : 's'}`}
-          className="flex items-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <ExportIcon />
-          {exporting ? 'Exporting…' : selectedIds.length > 0 ? `Export (${selectedIds.length})` : 'Export'}
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            disabled={exporting}
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="flex items-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ExportIcon />
+            {exporting ? 'Exporting…' : 'Export'}
+            <CaretIcon />
+          </button>
+
+          {menuOpen && (
+            <>
+              {/* click-away backdrop */}
+              <button
+                type="button"
+                aria-hidden="true"
+                tabIndex={-1}
+                className="fixed inset-0 z-10 cursor-default"
+                onClick={() => setMenuOpen(false)}
+              />
+              <div
+                role="menu"
+                className="absolute right-0 z-20 mt-1 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={selectedIds.length === 0}
+                  onClick={handleExportSelected}
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent"
+                >
+                  <span>Selected tasks</span>
+                  <span className="text-xs text-slate-400">{selectedIds.length}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleExportAll}
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                >
+                  <span>
+                    All {statusFilter === 'ALL' ? 'tasks' : FILTER_LABELS[statusFilter]}
+                  </span>
+                  <span className="text-xs text-slate-400">{filteredCount}</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
 
         <input
           ref={fileInputRef}
@@ -173,6 +246,18 @@ function ExportIcon() {
       <path
         fillRule="evenodd"
         d="M10 3a.75.75 0 0 1 .75.75v7.44l2.72-2.72a.75.75 0 1 1 1.06 1.06l-4 4a.75.75 0 0 1-1.06 0l-4-4a.75.75 0 1 1 1.06-1.06L9.25 11.19V3.75A.75.75 0 0 1 10 3ZM3.75 15a.75.75 0 0 0 0 1.5h12.5a.75.75 0 0 0 0-1.5H3.75Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
+function CaretIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
         clipRule="evenodd"
       />
     </svg>

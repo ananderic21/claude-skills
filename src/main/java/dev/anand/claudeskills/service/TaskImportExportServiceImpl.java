@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.RejectedExecutionException;
@@ -26,6 +27,7 @@ public class TaskImportExportServiceImpl implements TaskImportExportService {
 
     static final long MAX_IMPORT_BYTES = 100L * 1024 * 1024;
     private static final Duration FINISHED_JOB_RETENTION = Duration.ofHours(1);
+    private static final Set<String> EXPORTABLE_STATUSES = Set.of("TODO", "IN_PROGRESS", "DONE");
 
     private final TaskRepository taskRepository;
     private final TaskImportProcessor importProcessor;
@@ -41,6 +43,21 @@ public class TaskImportExportServiceImpl implements TaskImportExportService {
     @Transactional(readOnly = true)
     public TaskExportFile exportTasks(List<Long> ids) {
         return TaskExportFile.of(taskRepository.findAllById(ids));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TaskExportFile exportTasksByStatus(String status) {
+        // No status (or ALL) means export everything; otherwise export the
+        // full set matching that status regardless of paging in the UI.
+        if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status)) {
+            return TaskExportFile.of(taskRepository.findAll());
+        }
+        String normalized = status.toUpperCase(Locale.ROOT);
+        if (!EXPORTABLE_STATUSES.contains(normalized)) {
+            throw new InvalidFileException("Unknown status: " + status);
+        }
+        return TaskExportFile.of(taskRepository.findByStatusOrderById(normalized));
     }
 
     @Override

@@ -35,6 +35,7 @@ public class AuditAspect {
     }
 
     @Pointcut("execution(* dev.anand.claudeskills.service.TaskImportExportServiceImpl.exportTasks(..))"
+            + " || execution(* dev.anand.claudeskills.service.TaskImportExportServiceImpl.exportTasksByStatus(..))"
             + " || execution(* dev.anand.claudeskills.service.TaskImportExportServiceImpl.startImport(..))")
     public void importExportOperations() {
     }

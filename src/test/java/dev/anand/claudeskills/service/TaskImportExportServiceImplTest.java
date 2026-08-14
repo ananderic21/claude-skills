@@ -60,6 +60,54 @@ class TaskImportExportServiceImplTest {
         assertThat(file.count()).isEqualTo(0);
     }
 
+    @Test
+    void exportTasksByStatus_withStatus_returnsMatchingTasks() {
+        when(taskRepository.findByStatusOrderById("TODO"))
+                .thenReturn(List.of(task(1L, "A", "TODO"), task(2L, "C", "TODO")));
+
+        TaskExportFile file = service.exportTasksByStatus("TODO");
+
+        assertThat(file.tasks()).hasSize(2);
+        assertThat(file.count()).isEqualTo(2);
+    }
+
+    @Test
+    void exportTasksByStatus_isCaseInsensitive() {
+        when(taskRepository.findByStatusOrderById("DONE"))
+                .thenReturn(List.of(task(1L, "A", "DONE")));
+
+        TaskExportFile file = service.exportTasksByStatus("done");
+
+        assertThat(file.tasks()).hasSize(1);
+    }
+
+    @Test
+    void exportTasksByStatus_allExportsEverything() {
+        when(taskRepository.findAll())
+                .thenReturn(List.of(task(1L, "A", "TODO"), task(2L, "B", "DONE")));
+
+        TaskExportFile file = service.exportTasksByStatus("ALL");
+
+        assertThat(file.tasks()).hasSize(2);
+    }
+
+    @Test
+    void exportTasksByStatus_nullExportsEverything() {
+        when(taskRepository.findAll())
+                .thenReturn(List.of(task(1L, "A", "TODO")));
+
+        TaskExportFile file = service.exportTasksByStatus(null);
+
+        assertThat(file.tasks()).hasSize(1);
+    }
+
+    @Test
+    void exportTasksByStatus_unknownStatusThrows() {
+        assertThatThrownBy(() -> service.exportTasksByStatus("URGENT"))
+                .isInstanceOf(InvalidFileException.class)
+                .hasMessageContaining("Unknown status");
+    }
+
     // --- import validation ---
 
     @Test

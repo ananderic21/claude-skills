@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
 import java.time.LocalDate;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -34,7 +35,20 @@ public class TaskImportExportController {
     @PostMapping("/export")
     public ResponseEntity<TaskExportFile> exportTasks(@Valid @RequestBody TaskExportRequest request) {
         TaskExportFile file = importExportService.exportTasks(request.ids());
-        String filename = "tasks-export-" + LocalDate.now() + ".json";
+        return download(file, "tasks-export-" + LocalDate.now() + ".json");
+    }
+
+    @GetMapping("/export/all")
+    public ResponseEntity<TaskExportFile> exportAllByStatus(
+            @RequestParam(required = false) String status) {
+        TaskExportFile file = importExportService.exportTasksByStatus(status);
+        String label = (status == null || status.isBlank())
+                ? "all"
+                : status.toLowerCase(Locale.ROOT);
+        return download(file, "tasks-" + label + "-export-" + LocalDate.now() + ".json");
+    }
+
+    private ResponseEntity<TaskExportFile> download(TaskExportFile file, String filename) {
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")

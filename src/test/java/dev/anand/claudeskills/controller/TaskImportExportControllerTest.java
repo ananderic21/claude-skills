@@ -89,6 +89,41 @@ class TaskImportExportControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void exportAllByStatus_withStatus_returns200WithStatusInFilename() throws Exception {
+        Task task = Task.builder().id(1L).title("Todo task").status("TODO").build();
+        when(importExportService.exportTasksByStatus("TODO"))
+                .thenReturn(TaskExportFile.of(List.of(task)));
+
+        mockMvc.perform(get("/api/tasks/export/all").param("status", "TODO").principal(principal))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("tasks-todo-export-")))
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.tasks[0].title").value("Todo task"));
+    }
+
+    @Test
+    void exportAllByStatus_withoutStatus_exportsAll() throws Exception {
+        when(importExportService.exportTasksByStatus(null))
+                .thenReturn(TaskExportFile.of(List.of()));
+
+        mockMvc.perform(get("/api/tasks/export/all").principal(principal))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("tasks-all-export-")));
+    }
+
+    @Test
+    void exportAllByStatus_unknownStatus_returns400() throws Exception {
+        when(importExportService.exportTasksByStatus("URGENT"))
+                .thenThrow(new InvalidFileException("Unknown status: URGENT"));
+
+        mockMvc.perform(get("/api/tasks/export/all").param("status", "URGENT").principal(principal))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Unknown status: URGENT"));
+    }
+
     // --- import ---
 
     @Test

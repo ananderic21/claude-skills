@@ -10,6 +10,8 @@ public interface TaskImportExportService {
 
     TaskExportFile exportTasks(List<Long> ids);
 
+    TaskExportFile exportTasksByStatus(String status);
+
     ImportJobStatus startImport(String username, MultipartFile file);
 
     ImportJobStatus getImportStatus(String jobId);
