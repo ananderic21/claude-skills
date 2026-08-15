@@ -67,6 +67,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidToken(InvalidTokenException ex) {
+        log.debug("Invalid reset token: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, String>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         log.warn("Upload rejected — file too large: {}", ex.getMessage());

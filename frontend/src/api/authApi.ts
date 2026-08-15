@@ -19,6 +19,20 @@ export function logout(): Promise<void> {
   return apiFetch<void>('/api/auth/logout', { method: 'POST' })
 }
 
+export function forgotPassword(email: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export function resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword }),
+  })
+}
+
 export function refreshToken(): Promise<AuthResponse> {
   return apiFetch<AuthResponse>('/api/auth/token/refresh', { method: 'POST' })
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import AuthPage from './components/AuthPage'
 import Avatar from './components/Avatar'
 import ProfilePage from './components/ProfilePage'
+import ResetPasswordPage from './components/ResetPasswordPage'
 import TaskForm from './components/TaskForm'
 import TaskImportExport from './components/TaskImportExport'
 import TaskList from './components/TaskList'
@@ -12,13 +13,35 @@ import type { Task, TaskPayload, TaskStatus } from './types/task'
 type StatusFilter = TaskStatus | 'ALL'
 const PAGE_SIZE = 10
 
+// The password-reset email links to /reset-password?token=...; there's no
+// router, so read the token straight off the URL on load.
+function readResetToken(): string | null {
+  if (!window.location.pathname.startsWith('/reset-password')) return null
+  return new URLSearchParams(window.location.search).get('token')
+}
+
 export default function App() {
   const { session } = useAuth()
   const [view, setView] = useState<'dashboard' | 'profile'>('dashboard')
+  const [resetToken, setResetToken] = useState<string | null>(() => readResetToken())
 
   useEffect(() => {
     if (!session) setView('dashboard')
   }, [session])
+
+  // The reset link is valid whether or not someone is signed in.
+  if (resetToken) {
+    return (
+      <ResetPasswordPage
+        token={resetToken}
+        onDone={() => {
+          // Drop the token from the URL and return to the normal app shell.
+          window.history.replaceState({}, '', '/')
+          setResetToken(null)
+        }}
+      />
+    )
+  }
 
   if (!session) {
     return <AuthPage />
