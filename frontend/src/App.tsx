@@ -6,7 +6,7 @@ import ResetPasswordPage from './components/ResetPasswordPage'
 import TaskForm from './components/TaskForm'
 import TaskImportExport from './components/TaskImportExport'
 import TaskList from './components/TaskList'
-import { createTask, deleteTask, fetchTaskPage, updateTask } from './api/taskApi'
+import { createTask, deleteTask, fetchTaskPage, searchTasks, updateTask } from './api/taskApi'
 import { useAuth } from './auth/AuthContext'
 import type { Task, TaskPayload, TaskStatus } from './types/task'
 
@@ -61,6 +61,8 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
   const [error, setError] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)

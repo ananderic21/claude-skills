@@ -15,6 +15,18 @@ export function fetchTaskPage(
   return apiFetch<TaskPage>(`/api/tasks/page?${params.toString()}`)
 }
 
+export function searchTasks(
+  q: string,
+  status: TaskStatus | 'ALL',
+  page: number,
+  size: number,
+): Promise<TaskPage> {
+  const params = new URLSearchParams({ page: String(page), size: String(size) })
+  if (q.trim()) params.set('q', q.trim())
+  if (status !== 'ALL') params.set('status', status)
+  return apiFetch<TaskPage>(`/api/tasks/search?${params.toString()}`)
+}
+
 export function createTask(payload: TaskPayload): Promise<Task> {
   return apiFetch<Task>('/api/tasks', {
     method: 'POST',
