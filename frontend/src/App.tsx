@@ -68,11 +68,24 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
   const [totalElements, setTotalElements] = useState(0)
   const [counts, setCounts] = useState({ todo: 0, inProgress: 0, done: 0 })
 
+  // Debounce the search box so we don't fire a request on every keystroke.
+  // Whenever the debounced term settles, jump back to the first page.
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(0)
+    }, 300)
+    return () => window.clearTimeout(handle)
+  }, [search])
+
   const loadTasks = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const result = await fetchTaskPage(statusFilter, page, PAGE_SIZE)
+      const query = debouncedSearch.trim()
+      const result = query
+        ? await searchTasks(query, statusFilter, page, PAGE_SIZE)
+        : await fetchTaskPage(statusFilter, page, PAGE_SIZE)
       // If a delete/filter emptied the current page, step back to the last real page
       if (result.tasks.length === 0 && result.totalPages > 0 && page > result.totalPages - 1) {
         setPage(result.totalPages - 1)
@@ -92,7 +105,7 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, page])
+  }, [statusFilter, page, debouncedSearch])
 
   useEffect(() => {
     void loadTasks()
@@ -234,6 +247,8 @@ function Dashboard({ onOpenProfile }: { onOpenProfile: () => void }) {
               }
               statusFilter={statusFilter}
               onStatusFilterChange={handleFilterChange}
+              searchTerm={search}
+              onSearchChange={setSearch}
               page={page}
               totalPages={totalPages}
               totalElements={totalElements}

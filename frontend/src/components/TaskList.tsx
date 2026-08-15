@@ -14,6 +14,8 @@ interface TaskListProps {
   toolbar?: ReactNode
   statusFilter: StatusFilter
   onStatusFilterChange: (value: StatusFilter) => void
+  searchTerm: string
+  onSearchChange: (value: string) => void
   page: number
   totalPages: number
   totalElements: number
@@ -51,6 +53,8 @@ export default function TaskList({
   toolbar,
   statusFilter,
   onStatusFilterChange,
+  searchTerm,
+  onSearchChange,
   page,
   totalPages,
   totalElements,
@@ -66,8 +70,28 @@ export default function TaskList({
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
       <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <h2 className="text-sm font-semibold text-slate-700">Tasks</h2>
+          <div className="relative">
+            <input
+              type="search"
+              aria-label="Search tasks by title or description"
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search title or description…"
+              className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-3 pr-8 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-300 sm:w-64"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => onSearchChange('')}
+                className="absolute inset-y-0 right-2 flex items-center text-slate-400 transition hover:text-slate-600"
+              >
+                ×
+              </button>
+            )}
+          </div>
           <select
             aria-label="Filter tasks by status"
             value={statusFilter}
@@ -90,8 +114,19 @@ export default function TaskList({
         </div>
       ) : tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12">
-          <p className="text-base font-medium text-slate-700">No tasks yet</p>
-          <p className="mt-1 text-sm text-slate-500">Create your first task using the form.</p>
+          {searchTerm ? (
+            <>
+              <p className="text-base font-medium text-slate-700">No matching tasks</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Nothing matches “{searchTerm}”. Try a different search or clear it.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-base font-medium text-slate-700">No tasks yet</p>
+              <p className="mt-1 text-sm text-slate-500">Create your first task using the form.</p>
+            </>
+          )}
         </div>
       ) : (
         <table className="min-w-full divide-y divide-slate-200">
