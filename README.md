@@ -219,6 +219,7 @@ Base URL: `http://localhost:8080/api/tasks` — all require `Authorization: Bear
 |--------|-------------------|-----------------------------------|---------|
 | GET    | `/api/tasks`      | List all tasks (unpaged)          | 200 |
 | GET    | `/api/tasks/page` | List tasks paged + filtered       | 200 |
+| GET    | `/api/tasks/search` | Search tasks by keyword + status, paged | 200 |
 | GET    | `/api/tasks/{id}` | Get one task                      | 200 (404 if missing) |
 | POST   | `/api/tasks`      | Create a task                     | 201 (400 on validation error) |
 | PUT    | `/api/tasks/{id}` | Update a task                     | 200 (404 if missing) |
@@ -273,6 +274,29 @@ Response:
 `totalElements` / `totalPages` reflect the **filtered** result set (used to drive
 the pager), while `todoCount` / `inProgressCount` / `doneCount` are always counts
 across the whole table.
+
+### Search
+
+`GET /api/tasks/search` returns the same paged shape as `/page` (tasks + global
+per-status counts), but adds a keyword filter. The keyword is matched
+case-insensitively against **both** the task title and description, and can be
+combined with the `status` filter. Any parameter may be omitted — with none, it
+behaves like `/page`.
+
+| Query param | Default | Notes |
+|-------------|---------|-------|
+| `q`         | *(none)* | Keyword matched (partial, case-insensitive) against title or description. |
+| `status`    | *(none)* | Filter by `TODO`, `IN_PROGRESS`, or `DONE`. Omit for all statuses. |
+| `page`      | `0`      | Zero-based page index. |
+| `size`      | `10`     | Rows per page. Clamped to a maximum of `100`. |
+
+```bash
+curl "http://localhost:8080/api/tasks/search?q=release&status=TODO&page=0&size=10" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+The dashboard's search box calls this endpoint (debounced), resetting to the
+first page as you type and composing with the status dropdown.
 
 ## Project Structure
 
