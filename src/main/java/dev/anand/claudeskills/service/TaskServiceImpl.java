@@ -52,6 +52,28 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional(readOnly = true)
+    public TaskPageResponse searchTasks(String q, String status, int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        String keyword = (q == null || q.isBlank()) ? null : q.trim();
+        String statusFilter = (status == null || status.isBlank()) ? null : status;
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by("id").ascending());
+
+        Page<Task> result = taskRepository.search(keyword, statusFilter, pageable);
+
+        return new TaskPageResponse(
+                result.getContent(),
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages(),
+                taskRepository.countByStatus("TODO"),
+                taskRepository.countByStatus("IN_PROGRESS"),
+                taskRepository.countByStatus("DONE"));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Task getTaskById(Long id) {
         return taskRepository.findById(id)
                 .orElseThrow(() -> new TaskNotFoundException(id));

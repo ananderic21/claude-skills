@@ -102,6 +102,38 @@ class TaskControllerTest {
     }
 
     @Test
+    void searchTasks_passesKeywordFilterAndPagingToService() throws Exception {
+        TaskPageResponse pageResponse = new TaskPageResponse(
+                List.of(task), 0, 10, 1, 1, 4, 2, 3);
+        when(taskService.searchTasks(eq("tests"), eq("TODO"), eq(0), eq(10)))
+                .thenReturn(pageResponse);
+
+        mockMvc.perform(get("/api/tasks/search")
+                        .param("q", "tests")
+                        .param("status", "TODO")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tasks.length()").value(1))
+                .andExpect(jsonPath("$.tasks[0].title").value("Write tests"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.todoCount").value(4));
+
+        verify(taskService).searchTasks("tests", "TODO", 0, 10);
+    }
+
+    @Test
+    void searchTasks_withoutParams_usesNullFiltersAndDefaultPaging() throws Exception {
+        when(taskService.searchTasks(null, null, 0, 10))
+                .thenReturn(new TaskPageResponse(List.of(), 0, 10, 0, 0, 0, 0, 0));
+
+        mockMvc.perform(get("/api/tasks/search"))
+                .andExpect(status().isOk());
+
+        verify(taskService).searchTasks(null, null, 0, 10);
+    }
+
+    @Test
     void getTaskById_whenTaskExists_returns200WithTask() throws Exception {
         when(taskService.getTaskById(1L)).thenReturn(task);
 

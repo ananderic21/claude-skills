@@ -103,6 +103,62 @@ class TaskServiceImplTest {
     }
 
     @Test
+    void searchTasks_passesKeywordAndStatusToRepository_andReturnsGlobalCounts() {
+        when(taskRepository.search(eq("report"), eq("TODO"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(task), PageRequest.of(0, 10), 1));
+        when(taskRepository.countByStatus("TODO")).thenReturn(5L);
+        when(taskRepository.countByStatus("IN_PROGRESS")).thenReturn(2L);
+        when(taskRepository.countByStatus("DONE")).thenReturn(3L);
+
+        TaskPageResponse response = taskService.searchTasks("report", "TODO", 0, 10);
+
+        assertEquals(1, response.tasks().size());
+        assertEquals(1, response.totalElements());
+        assertEquals(5L, response.todoCount());
+        assertEquals(2L, response.inProgressCount());
+        assertEquals(3L, response.doneCount());
+        verify(taskRepository).search(eq("report"), eq("TODO"), any(Pageable.class));
+    }
+
+    @Test
+    void searchTasks_trimsKeyword_andNormalizesBlankFiltersToNull() {
+        ArgumentCaptor<String> qCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> statusCaptor = ArgumentCaptor.forClass(String.class);
+        when(taskRepository.search(qCaptor.capture(), statusCaptor.capture(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(task), PageRequest.of(0, 10), 1));
+
+        taskService.searchTasks("  report  ", "   ", 0, 10);
+
+        assertEquals("report", qCaptor.getValue());
+        assertNull(statusCaptor.getValue());
+    }
+
+    @Test
+    void searchTasks_withAllBlankFilters_passesNullKeywordAndStatus() {
+        ArgumentCaptor<String> qCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> statusCaptor = ArgumentCaptor.forClass(String.class);
+        when(taskRepository.search(qCaptor.capture(), statusCaptor.capture(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        taskService.searchTasks(null, "", 0, 10);
+
+        assertNull(qCaptor.getValue());
+        assertNull(statusCaptor.getValue());
+    }
+
+    @Test
+    void searchTasks_clampsOversizedPageSizeTo100_andNegativePageToZero() {
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        when(taskRepository.search(any(), any(), captor.capture()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 100), 0));
+
+        taskService.searchTasks("q", "TODO", -3, 9999);
+
+        assertEquals(100, captor.getValue().getPageSize());
+        assertEquals(0, captor.getValue().getPageNumber());
+    }
+
+    @Test
     void getTaskById_whenTaskExists_returnsTask() {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
 

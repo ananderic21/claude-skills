@@ -11,6 +11,8 @@ public interface TaskService {
 
     TaskPageResponse getTasks(String status, int page, int size);
 
+    TaskPageResponse searchTasks(String q, String status, int page, int size);
+
     Task getTaskById(Long id);
 
     Task createTask(Task task);

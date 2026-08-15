@@ -41,6 +41,15 @@ public class TaskController {
         return ResponseEntity.ok(taskService.getTasks(status, page, size));
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<TaskPageResponse> searchTasks(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(taskService.searchTasks(q, status, page, size));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Task> getTaskById(@PathVariable Long id) {
         return ResponseEntity.ok(taskService.getTaskById(id));
