@@ -8,21 +8,21 @@ A full-stack Task Management application:
 
 ## Prerequisites
 
-| Tool  | Version | Check           |
-|-------|---------|-----------------|
-| JDK   | 21+     | `java -version` |
-| Node  | 20+     | `node -v`       |
+| Tool  | Version | Check                |
+| ----- | ------- | -------------------- |
+| JDK   | 21+     | `java -version`      |
+| Node  | 20+     | `node -v`            |
 | MySQL | 8+      | running on port 3306 |
 
 ## Database
 
 The backend connects to MySQL with these settings (see `src/main/resources/application.properties`):
 
-| Property | Value |
-|----------|-------|
-| URL      | `jdbc:mysql://localhost:3306/javadb` |
-| Username | `root` |
-| Password | read from the `DB_PASSWORD` environment variable |
+| Property | Value                                                                           |
+| -------- | ------------------------------------------------------------------------------- |
+| URL      | `jdbc:mysql://localhost:3306/javadb`                                            |
+| Username | `root`                                                                          |
+| Password | read from the `DB_PASSWORD` environment variable                                |
 | Schema   | `javadb` — created automatically on first run (`createDatabaseIfNotExist=true`) |
 
 The `tasks`, `users`, and `password_reset_tokens` tables are created by the
@@ -33,18 +33,18 @@ Just make sure MySQL is running.
 
 Two environment variables are **required**:
 
-| Variable      | Purpose |
-|---------------|---------|
-| `DB_PASSWORD` | MySQL password for the `root` user |
+| Variable      | Purpose                                                                                                  |
+| ------------- | -------------------------------------------------------------------------------------------------------- |
+| `DB_PASSWORD` | MySQL password for the `root` user                                                                       |
 | `JWT_SECRET`  | HMAC key used to sign auth tokens — at least 32 characters (generate one with `openssl rand -base64 48`) |
 
 Two more are **optional** — needed only for the "forgot password" email (see
 [Password Reset Email](#password-reset-email-gmail-smtp)). If unset, the app
 still boots and only the reset-email send fails (logged to `logs/error.log`):
 
-| Variable        | Purpose |
-|-----------------|---------|
-| `MAIL_USERNAME` | Gmail address that sends reset emails |
+| Variable        | Purpose                                                                           |
+| --------------- | --------------------------------------------------------------------------------- |
+| `MAIL_USERNAME` | Gmail address that sends reset emails                                             |
 | `MAIL_PASSWORD` | Gmail **App Password** (16 letters) for that account — *not* your normal password |
 
 ```bash
@@ -81,27 +81,27 @@ enter your email, and you'll receive a reset link. The link opens
 All `/api/tasks` endpoints require a JWT. Obtain one from the auth endpoints
 (no token needed for register/login):
 
-| Method | Path                      | Description | Success |
-|--------|---------------------------|-------------|---------|
-| POST   | `/api/auth/register`      | Create an account, returns a token | 201 (400 validation, 409 duplicate) |
-| POST   | `/api/auth/login`         | Exchange credentials for a token   | 200 (401 bad credentials) |
-| POST   | `/api/auth/token/refresh` | Issue a fresh token (requires a valid token) | 200 |
-| POST   | `/api/auth/logout`        | Record the logout time (requires a valid token) | 204 |
-| POST   | `/api/auth/forgot-password` | Email a password reset link (no token needed) | 200 (always, even if the email is unknown) |
-| POST   | `/api/auth/reset-password`  | Set a new password using the emailed token | 200 (400 if the token is invalid/expired) |
+| Method | Path                        | Description                                     | Success                                    |
+| ------ | --------------------------- | ----------------------------------------------- | ------------------------------------------ |
+| POST   | `/api/auth/register`        | Create an account, returns a token              | 201 (400 validation, 409 duplicate)        |
+| POST   | `/api/auth/login`           | Exchange credentials for a token                | 200 (401 bad credentials)                  |
+| POST   | `/api/auth/token/refresh`   | Issue a fresh token (requires a valid token)    | 200                                        |
+| POST   | `/api/auth/logout`          | Record the logout time (requires a valid token) | 204                                        |
+| POST   | `/api/auth/forgot-password` | Email a password reset link (no token needed)   | 200 (always, even if the email is unknown) |
+| POST   | `/api/auth/reset-password`  | Set a new password using the emailed token      | 200 (400 if the token is invalid/expired)  |
 
 ## User Profile
 
 All `/api/profile` endpoints require a valid token and operate on the
 authenticated user:
 
-| Method | Path                    | Description | Success |
-|--------|-------------------------|-------------|---------|
-| GET    | `/api/profile`          | Current user's profile (username, name, email, picture flag) | 200 |
-| PUT    | `/api/profile`          | Update name, username, email — username/email must stay unique | 200 (400 validation, 409 duplicate) |
-| PUT    | `/api/profile/password` | Change password (requires the current password) | 204 (400 wrong/invalid password) |
-| POST   | `/api/profile/picture`  | Upload a profile picture (multipart `file`: JPEG/PNG/WebP, max 2MB) | 200 (400 bad type, 413 too large) |
-| GET    | `/api/profile/picture`  | Serve the stored profile picture | 200 (404 if none) |
+| Method | Path                    | Description                                                         | Success                             |
+| ------ | ----------------------- | ------------------------------------------------------------------- | ----------------------------------- |
+| GET    | `/api/profile`          | Current user's profile (username, name, email, picture flag)        | 200                                 |
+| PUT    | `/api/profile`          | Update name, username, email — username/email must stay unique      | 200 (400 validation, 409 duplicate) |
+| PUT    | `/api/profile/password` | Change password (requires the current password)                     | 204 (400 wrong/invalid password)    |
+| POST   | `/api/profile/picture`  | Upload a profile picture (multipart `file`: JPEG/PNG/WebP, max 2MB) | 200 (400 bad type, 413 too large)   |
+| GET    | `/api/profile/picture`  | Serve the stored profile picture                                    | 200 (404 if none)                   |
 
 Notes:
 
@@ -210,20 +210,39 @@ With the backend running:
 - **Swagger UI (interactive):** http://localhost:8080/swagger-ui.html
 - **OpenAPI 3.1 spec (JSON):** http://localhost:8080/v3/api-docs
 
+### Authorizing in Swagger (bearerAuth)
+
+All task endpoints are locked (🔒) and need a JWT. To call them from Swagger UI:
+
+1. Expand **`POST /api/auth/login`** → **Try it out** and send your credentials:
+   ```json
+   { "username": "yourname", "password": "yourpassword" }
+   ```
+   (No account yet? Use **`POST /api/auth/register`** first — it also returns a token.)
+2. Copy the **`token`** value from the 200 response (ignore `tokenType`/`username`).
+3. Click the green **Authorize** button (top-right). Under **`bearerAuth (http, Bearer)`**,
+   paste **just the raw token** — do **not** add a `Bearer ` prefix; the scheme is
+   `type: http, scheme: bearer`, so Swagger adds it for you. Click **Authorize** → **Close**.
+4. Every 🔒 endpoint now sends `Authorization: Bearer <token>` automatically.
+
+The token is valid for **8 hours** (`expiresInSeconds: 28800`). When it expires you'll get
+**401** — log in again and re-authorize. Login/register and the Swagger/`v3/api-docs` URLs
+are public; everything else requires the token.
+
 ## REST Endpoints
 
 Base URL: `http://localhost:8080/api/tasks` — all require `Authorization: Bearer <token>`
 (requests without a valid token get **401**).
 
-| Method | Path              | Description                       | Success |
-|--------|-------------------|-----------------------------------|---------|
-| GET    | `/api/tasks`      | List all tasks (unpaged)          | 200 |
-| GET    | `/api/tasks/page` | List tasks paged + filtered       | 200 |
-| GET    | `/api/tasks/search` | Search tasks by keyword + status, paged | 200 |
-| GET    | `/api/tasks/{id}` | Get one task                      | 200 (404 if missing) |
-| POST   | `/api/tasks`      | Create a task                     | 201 (400 on validation error) |
-| PUT    | `/api/tasks/{id}` | Update a task                     | 200 (404 if missing) |
-| DELETE | `/api/tasks/{id}` | Delete a task                     | 204 (404 if missing) |
+| Method | Path                | Description                             | Success                       |
+| ------ | ------------------- | --------------------------------------- | ----------------------------- |
+| GET    | `/api/tasks`        | List all tasks (unpaged)                | 200                           |
+| GET    | `/api/tasks/page`   | List tasks paged + filtered             | 200                           |
+| GET    | `/api/tasks/search` | Search tasks by keyword + status, paged | 200                           |
+| GET    | `/api/tasks/{id}`   | Get one task                            | 200 (404 if missing)          |
+| POST   | `/api/tasks`        | Create a task                           | 201 (400 on validation error) |
+| PUT    | `/api/tasks/{id}`   | Update a task                           | 200 (404 if missing)          |
+| DELETE | `/api/tasks/{id}`   | Delete a task                           | 204 (404 if missing)          |
 
 Example payload:
 
@@ -243,11 +262,11 @@ Example payload:
 per-status counts, so the dashboard stat cards stay accurate independent of the
 current page or filter.
 
-| Query param | Default | Notes |
-|-------------|---------|-------|
+| Query param | Default  | Notes                                                              |
+| ----------- | -------- | ------------------------------------------------------------------ |
 | `status`    | *(none)* | Filter by `TODO`, `IN_PROGRESS`, or `DONE`. Omit for all statuses. |
-| `page`      | `0`      | Zero-based page index. |
-| `size`      | `10`     | Rows per page. Clamped to a maximum of `100`. |
+| `page`      | `0`      | Zero-based page index.                                             |
+| `size`      | `10`     | Rows per page. Clamped to a maximum of `100`.                      |
 
 ```bash
 curl "http://localhost:8080/api/tasks/page?status=TODO&page=0&size=10" \
@@ -283,12 +302,12 @@ case-insensitively against **both** the task title and description, and can be
 combined with the `status` filter. Any parameter may be omitted — with none, it
 behaves like `/page`.
 
-| Query param | Default | Notes |
-|-------------|---------|-------|
+| Query param | Default  | Notes                                                                     |
+| ----------- | -------- | ------------------------------------------------------------------------- |
 | `q`         | *(none)* | Keyword matched (partial, case-insensitive) against title or description. |
-| `status`    | *(none)* | Filter by `TODO`, `IN_PROGRESS`, or `DONE`. Omit for all statuses. |
-| `page`      | `0`      | Zero-based page index. |
-| `size`      | `10`     | Rows per page. Clamped to a maximum of `100`. |
+| `status`    | *(none)* | Filter by `TODO`, `IN_PROGRESS`, or `DONE`. Omit for all statuses.        |
+| `page`      | `0`      | Zero-based page index.                                                    |
+| `size`      | `10`     | Rows per page. Clamped to a maximum of `100`.                             |
 
 ```bash
 curl "http://localhost:8080/api/tasks/search?q=release&status=TODO&page=0&size=10" \
@@ -328,12 +347,12 @@ first page as you type and composing with the status dropdown.
 Three Spring AOP aspects (`@Around` advice in the `logging` package) write to
 separate rolling files under `logs/` (gitignored; rolled daily and gzipped):
 
-| File | Logger/Aspect | Contents |
-|------|---------------|----------|
-| `logs/request.log` | `RequestLoggingAspect` | Every API request/response: HTTP method, URI, authenticated user, client IP, handler, sanitized args, status or exception |
-| `logs/audit.log` | `AuditAspect` | Who did what: register/login/refresh and task create/update/delete with actor, outcome SUCCESS/FAILURE, and details (kept 90 days) |
-| `logs/user_audit.log` | `UserSessionAuditAspect` | User login and logout times: `event=LOGIN/LOGOUT \| user \| outcome` — failed logins are logged as WARN with the reason (kept 90 days) |
-| `logs/performance.log` | `PerformanceAspect` | Time taken by each controller and service method; entries over `app.logging.slow-threshold-ms` (default 500) are logged as `WARN SLOW` |
+| File                   | Logger/Aspect            | Contents                                                                                                                               |        |                                                                            |
+| ------                 | ---------------          | ----------                                                                                                                             |        |                                                                            |
+| `logs/request.log`     | `RequestLoggingAspect`   | Every API request/response: HTTP method, URI, authenticated user, client IP, handler, sanitized args, status or exception              |        |                                                                            |
+| `logs/audit.log`       | `AuditAspect`            | Who did what: register/login/refresh and task create/update/delete with actor, outcome SUCCESS/FAILURE, and details (kept 90 days)     |        |                                                                            |
+| `logs/user_audit.log`  | `UserSessionAuditAspect` | User login and logout times: `event=LOGIN/LOGOUT \                                                                                     | user \ | outcome` — failed logins are logged as WARN with the reason (kept 90 days) |
+| `logs/performance.log` | `PerformanceAspect`      | Time taken by each controller and service method; entries over `app.logging.slow-threshold-ms` (default 500) are logged as `WARN SLOW` |        |                                                                            |
 
 Every request gets a short correlation id (e.g. `[1b102b63]`) shared across all
 three files, so you can trace a single request end to end. Passwords and JWT
