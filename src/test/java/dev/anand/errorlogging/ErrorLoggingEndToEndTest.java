@@ -59,6 +59,9 @@ class ErrorLoggingEndToEndTest {
                 HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/boom")).build(),
                 HttpResponse.BodyHandlers.ofString());
 
+        System.out.println(">>> DIAG status=" + response.statusCode()
+                + " body=" + response.body() + " headers=" + response.headers().map());
+
         // 1. Client gets a safe 500 that does not leak internals.
         assertThat(response.statusCode()).isEqualTo(500);
         assertThat(response.body()).contains("unexpected error");
