@@ -2,7 +2,7 @@
 
 A full-stack Task Management application:
 
-- **Backend** — Java 21, Spring Boot 4.1, Spring Data JPA, Spring Security (JWT auth), Flyway, Lombok (Maven)
+- **Backend** — Java 21, Spring Boot 4.1, Spring Data JPA, Spring Security (JWT auth), Flyway, Spring Mail (Gmail SMTP), Lombok (Maven)
 - **Frontend** — React 19, TypeScript, Vite, Tailwind CSS v4
 - **Database** — MySQL 8
 
@@ -25,27 +25,38 @@ The backend connects to MySQL with these settings (see `src/main/resources/appli
 | Password | read from the `DB_PASSWORD` environment variable |
 | Schema   | `javadb` — created automatically on first run (`createDatabaseIfNotExist=true`) |
 
-The `tasks` and `users` tables are created by the Flyway migrations in
-`src/main/resources/db/migration/` — no manual SQL needed.
+The `tasks`, `users`, and `password_reset_tokens` tables are created by the
+Flyway migrations in `src/main/resources/db/migration/` — no manual SQL needed.
 Just make sure MySQL is running.
 
 ## Run the Backend (port 8080)
 
-Two environment variables are required:
+Two environment variables are **required**:
 
 | Variable      | Purpose |
 |---------------|---------|
 | `DB_PASSWORD` | MySQL password for the `root` user |
 | `JWT_SECRET`  | HMAC key used to sign auth tokens — at least 32 characters (generate one with `openssl rand -base64 48`) |
 
+Two more are **optional** — needed only for the "forgot password" email (see
+[Password Reset Email](#password-reset-email-gmail-smtp)). If unset, the app
+still boots and only the reset-email send fails (logged to `logs/error.log`):
+
+| Variable        | Purpose |
+|-----------------|---------|
+| `MAIL_USERNAME` | Gmail address that sends reset emails |
+| `MAIL_PASSWORD` | Gmail **App Password** (16 letters) for that account — *not* your normal password |
+
 ```bash
 export DB_PASSWORD=your_mysql_password
 export JWT_SECRET=$(openssl rand -base64 48)
+export MAIL_USERNAME=youraccount@gmail.com   # optional
+export MAIL_PASSWORD=abcdefghijklmnop         # optional (Gmail App Password)
 ./mvnw spring-boot:run
 ```
 
-In IntelliJ, add both under Run Configuration → Environment variables instead.
-The app fails fast at startup if either is missing.
+In IntelliJ, add these under Run Configuration → Environment variables instead.
+The app fails fast at startup if `DB_PASSWORD` or `JWT_SECRET` is missing.
 
 ## Run the Frontend / GUI (port 5173)
 
@@ -60,6 +71,11 @@ account (or sign in), then the Task Dashboard lets you create tasks, change
 their status (To Do / In Progress / Done), and delete them. Use **Sign out**
 in the header to end the session.
 
+Forgot your password? Click **Forgot your password?** on the sign-in page,
+enter your email, and you'll receive a reset link. The link opens
+`/reset-password?token=…` where you choose a new password (see
+[Password Reset Email](#password-reset-email-gmail-smtp)).
+
 ## Authentication
 
 All `/api/tasks` endpoints require a JWT. Obtain one from the auth endpoints
@@ -71,6 +87,8 @@ All `/api/tasks` endpoints require a JWT. Obtain one from the auth endpoints
 | POST   | `/api/auth/login`         | Exchange credentials for a token   | 200 (401 bad credentials) |
 | POST   | `/api/auth/token/refresh` | Issue a fresh token (requires a valid token) | 200 |
 | POST   | `/api/auth/logout`        | Record the logout time (requires a valid token) | 204 |
+| POST   | `/api/auth/forgot-password` | Email a password reset link (no token needed) | 200 (always, even if the email is unknown) |
+| POST   | `/api/auth/reset-password`  | Set a new password using the emailed token | 200 (400 if the token is invalid/expired) |
 
 ## User Profile
 
@@ -113,12 +131,59 @@ Details:
 - The React app stores the session in `localStorage` and logs you out automatically when the token expires or the API returns 401. **Sign out** also calls `/api/auth/logout` so the logout time lands in `logs/user_audit.log`.
 - In Swagger UI, click **Authorize** and paste the token to call protected endpoints.
 
+## Password Reset Email (Gmail SMTP)
+
+"Forgot password" emails a single-use, 24-hour reset link over Gmail SMTP.
+
+**Flow**
+
+1. `POST /api/auth/forgot-password` with `{"email":"you@example.com"}`. The
+   response is always the same generic message, so the endpoint can't be used to
+   probe which emails are registered.
+2. If the email belongs to an account, a link is emailed:
+   `http://localhost:5173/reset-password?token=<random>`. Any earlier link for
+   that user is invalidated so only the newest one works.
+3. `POST /api/auth/reset-password` with `{"token":"…","newPassword":"…"}` sets the
+   new password. The token is rejected (**400**) if it's unknown, already used,
+   or older than 24 hours.
+
+**Security**
+
+- Only the **SHA-256 hash** of the token is stored (`password_reset_tokens`
+  table) — the raw token lives only in the email link, so a DB leak can't be
+  replayed.
+- The link lifetime is `app.password-reset.expiry-hours` (default `24`); the
+  reset URL base is `app.frontend.base-url` (default `http://localhost:5173`).
+- Email is sent asynchronously (`@Async`); send failures are logged to
+  `logs/error.log` and never block the HTTP response or reveal account existence.
+
+**Gmail configuration** (in `application.properties`, values from env vars):
+
+```properties
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=${MAIL_USERNAME:...}
+spring.mail.password=${MAIL_PASSWORD:...}
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+```
+
+`MAIL_PASSWORD` must be a Google **App Password**, not your normal login
+password:
+
+1. Enable **2-Step Verification** on the Google account
+   (Google Account → Security).
+2. Create an **App Password** at <https://myaccount.google.com/apppasswords>.
+3. It's **16 lowercase letters** shown as four groups (`abcd efgh ijkl mnop`) —
+   enter it with the spaces removed. It must be generated on the *same* account
+   set in `spring.mail.username`, or Gmail replies `535-5.7.8 BadCredentials`.
+
 ## Run the Tests
 
 Unit tests (Mockito — no database or Docker required):
 
 ```bash
-./mvnw test -Dtest="TaskServiceImplTest,TaskControllerTest,AuthServiceImplTest,AuthControllerTest,TokenControllerTest,ProfileServiceImplTest,ProfileControllerTest"
+./mvnw test -Dtest="TaskServiceImplTest,TaskControllerTest,AuthServiceImplTest,AuthControllerTest,TokenControllerTest,ProfileServiceImplTest,ProfileControllerTest,PasswordResetServiceImplTest"
 ```
 
 - `TaskServiceImplTest` — 8 tests for the task service layer (mocked repository)
