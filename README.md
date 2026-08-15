@@ -193,6 +193,7 @@ Unit tests (Mockito — no database or Docker required):
 - `TokenControllerTest` — 2 tests for the token refresh endpoint
 - `ProfileServiceImplTest` — 13 tests for profile update/uniqueness, password change, picture storage
 - `ProfileControllerTest` — 11 tests for the profile REST layer (validation, 409, multipart upload, 404)
+- `PasswordResetServiceImplTest` — 6 tests for the forgot/reset-password flow: token issue + email send, no leak on unknown email, successful reset, and invalid/expired/used-token rejection (mocked repositories, encoder, email)
 
 Full suite including the Testcontainers integration test (requires Docker running):
 
