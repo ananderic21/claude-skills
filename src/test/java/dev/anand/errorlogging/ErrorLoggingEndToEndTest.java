@@ -7,15 +7,12 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
-import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
-import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
-import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterAutoConfiguration;
-import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration;
-import org.springframework.boot.security.oauth2.server.resource.autoconfigure.web.OAuth2ResourceServerWebSecurityAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -59,9 +56,6 @@ class ErrorLoggingEndToEndTest {
                 HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/boom")).build(),
                 HttpResponse.BodyHandlers.ofString());
 
-        System.out.println(">>> DIAG status=" + response.statusCode()
-                + " body=" + response.body() + " headers=" + response.headers().map());
-
         // 1. Client gets a safe 500 that does not leak internals.
         assertThat(response.statusCode()).isEqualTo(500);
         assertThat(response.body()).contains("unexpected error");
@@ -84,14 +78,18 @@ class ErrorLoggingEndToEndTest {
     @EnableAutoConfiguration(exclude = {
             DataSourceAutoConfiguration.class,
             HibernateJpaAutoConfiguration.class,
-            FlywayAutoConfiguration.class,
-            SecurityAutoConfiguration.class,
-            SecurityFilterAutoConfiguration.class,
-            UserDetailsServiceAutoConfiguration.class,
-            OAuth2ResourceServerAutoConfiguration.class,
-            OAuth2ResourceServerWebSecurityAutoConfiguration.class
+            FlywayAutoConfiguration.class
     })
     static class TestApp {
+
+        // Permit-all chain so Spring Boot's default (HTTP Basic) chain backs off and /boom
+        // is reachable — this test is about error logging, not auth.
+        @Bean
+        SecurityFilterChain permitAll(HttpSecurity http) throws Exception {
+            http.csrf(csrf -> csrf.disable())
+                    .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+            return http.build();
+        }
 
         @Bean
         BoomController boomController() {
