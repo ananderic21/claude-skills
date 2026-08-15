@@ -278,24 +278,24 @@ across the whole table.
 
 ```
 ├── src/main/java/dev/anand/claudeskills/
-│   ├── controller/   TaskController, AuthController (register/login/logout), TokenController (refresh), ProfileController
-│   ├── service/      TaskService(Impl), AuthService(Impl), ProfileService(Impl), JwtService, AppUserDetailsService
-│   ├── repository/   TaskRepository, UserRepository (Spring Data JPA)
-│   ├── entity/       Task, User (JPA entities + Jakarta validation)
-│   ├── dto/          RegisterRequest, LoginRequest, AuthResponse, Profile* / ChangePasswordRequest
-│   ├── config/       SecurityConfig (JWT resource server, CORS), JwtProperties, OpenApiConfig
-│   ├── logging/      RequestLoggingAspect, AuditAspect, UserSessionAuditAspect, PerformanceAspect (Spring AOP)
-│   └── exception/    TaskNotFoundException, DuplicateResourceException, GlobalExceptionHandler
+│   ├── controller/   TaskController, AuthController (register/login/logout), PasswordResetController (forgot/reset), TokenController (refresh), ProfileController
+│   ├── service/      TaskService(Impl), AuthService(Impl), PasswordResetService(Impl), EmailService(Impl), ProfileService(Impl), JwtService, AppUserDetailsService
+│   ├── repository/   TaskRepository, UserRepository, PasswordResetTokenRepository (Spring Data JPA)
+│   ├── entity/       Task, User, PasswordResetToken (JPA entities + Jakarta validation)
+│   ├── dto/          RegisterRequest, LoginRequest, AuthResponse, ForgotPasswordRequest, ResetPasswordRequest, Profile* / ChangePasswordRequest
+│   ├── config/       SecurityConfig (JWT resource server, CORS), JwtProperties, OpenApiConfig, AsyncConfig
+│   ├── logging/      RequestLoggingAspect, RequestIdFilter, AuditAspect, UserSessionAuditAspect, PerformanceAspect (Spring AOP)
+│   └── exception/    TaskNotFoundException, DuplicateResourceException, InvalidTokenException, GlobalExceptionHandler
 ├── src/main/resources/
 │   ├── application.properties
 │   ├── logback-spring.xml    (separate rolling log files under logs/)
-│   └── db/migration/ Flyway SQL migrations (V1 tasks, V2 users, V3 profile fields)
+│   └── db/migration/ Flyway SQL migrations (V1 tasks, V2 users, V3 profile fields, V4 password_reset_tokens)
 ├── src/test/java/    Mockito unit tests + Testcontainers integration test
 └── frontend/         React + Vite + Tailwind GUI
     └── src/
         ├── api/        client.ts (fetch + Bearer token), taskApi.ts, authApi.ts, profileApi.ts
         ├── auth/       AuthContext.tsx, session.ts (localStorage session)
-        ├── components/ AuthPage (sign in/up), TaskForm, TaskList, ProfilePage, Avatar
+        ├── components/ AuthPage (sign in/up + forgot password), ResetPasswordPage, TaskForm, TaskList, ProfilePage, Avatar
         └── types/      task.ts, auth.ts, profile.ts
 ```
 
