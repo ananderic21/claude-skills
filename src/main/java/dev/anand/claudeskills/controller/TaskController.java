@@ -50,7 +50,9 @@ public class TaskController {
         return ResponseEntity.ok(taskService.searchTasks(q, status, page, size));
     }
 
-    @GetMapping("/{id}")
+    // {id:\d+} restricts this route to numeric ids so literal sub-paths like
+    // /search are never mistaken for an id (which would 500 on Long parsing).
+    @GetMapping("/{id:\\d+}")
     public ResponseEntity<Task> getTaskById(@PathVariable Long id) {
         return ResponseEntity.ok(taskService.getTaskById(id));
     }
@@ -60,12 +62,12 @@ public class TaskController {
         return ResponseEntity.status(HttpStatus.CREATED).body(taskService.createTask(task));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{id:\\d+}")
     public ResponseEntity<Task> updateTask(@PathVariable Long id, @Valid @RequestBody Task task) {
         return ResponseEntity.ok(taskService.updateTask(id, task));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:\\d+}")
     public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
         taskService.deleteTask(id);
         return ResponseEntity.noContent().build();

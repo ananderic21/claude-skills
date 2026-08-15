@@ -134,6 +134,21 @@ class TaskControllerTest {
     }
 
     @Test
+    void search_isNotShadowedByTheIdRoute_andNeverParsesLiteralAsId() throws Exception {
+        // Regression: GET /api/tasks/search must hit searchTasks, not getTaskById
+        // (which would try to parse "search" as a Long and 500). The {id:\\d+}
+        // constraint keeps the literal path from matching the id route.
+        when(taskService.searchTasks(null, null, 0, 10))
+                .thenReturn(new TaskPageResponse(List.of(), 0, 10, 0, 0, 0, 0, 0));
+
+        mockMvc.perform(get("/api/tasks/search"))
+                .andExpect(status().isOk());
+
+        verify(taskService).searchTasks(null, null, 0, 10);
+        verify(taskService, never()).getTaskById(any());
+    }
+
+    @Test
     void getTaskById_whenTaskExists_returns200WithTask() throws Exception {
         when(taskService.getTaskById(1L)).thenReturn(task);
 
